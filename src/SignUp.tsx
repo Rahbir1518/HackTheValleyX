@@ -57,7 +57,7 @@ export default function SignUpPage() {
             routing="path"
             path="/signup"
             signInUrl="/login"
-            afterSignUpUrl="/dashboard"
+            afterSignUpUrl="/onboarding"
           />
         </div>
 

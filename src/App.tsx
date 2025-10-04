@@ -5,6 +5,10 @@ import SignUp from "./SignUp";
 import Dashboard from "./Dashboard";
 import Learning from "./Learning";
 import Home from "./Home";
+import Onboarding from './Onboarding';
+
+// In your routes:
+
 
 const App = () => {
   return (
@@ -15,6 +19,7 @@ const App = () => {
       <Route path="/signup" element={<SignUp />} />
 
       {/* Protected Routes */}
+      <Route path="/onboarding" element={<Onboarding />} />
       <Route
         path="/dashboard"
         element={

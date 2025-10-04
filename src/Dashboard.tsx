@@ -41,12 +41,26 @@ interface AnalysisResult {
   key_findings: string;
 }
 
+interface Doctor {
+  id: number;
+  name: string;
+  specialty: string;
+  distance: number;
+  languages: string[];
+  rating: number;
+  availability: string;
+  experience: number;
+}
+
 const Dashboard = () => {
   const [isMonitoring, setIsMonitoring] = useState<boolean>(false);
   const [audioLevel, setAudioLevel] = useState<number>(0);
   const [sessionTime, setSessionTime] = useState<number>(0);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [processingStatus, setProcessingStatus] = useState<string>('');
+  const [showDoctorModal, setShowDoctorModal] = useState<boolean>(false);
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('distance');
   
   const [audioFeatures, setAudioFeatures] = useState<AudioFeatures | null>(null);
   const [baseFeatures, setBaseFeatures] = useState<AudioFeatures | null>(null);
@@ -57,6 +71,14 @@ const Dashboard = () => {
   ]);
   const [nextSteps, setNextSteps] = useState<string[]>([]);
   const [keyFindings, setKeyFindings] = useState<string>("Upload audio to begin analysis");
+
+  const [doctors] = useState<Doctor[]>([
+    { id: 1, name: "Dr. Sarah Mitchell", specialty: "Pediatric Developmental Specialist", distance: 2.3, languages: ["English", "Spanish"], rating: 4.9, availability: "Next: Tomorrow 2:00 PM", experience: 15 },
+    { id: 2, name: "Dr. James Chen", specialty: "Speech-Language Pathologist", distance: 3.7, languages: ["English", "Mandarin"], rating: 4.8, availability: "Next: Today 4:30 PM", experience: 12 },
+    { id: 3, name: "Dr. Amira Patel", specialty: "Child Neurologist", distance: 5.1, languages: ["English", "Hindi", "Gujarati"], rating: 4.9, availability: "Next: Mon 10:00 AM", experience: 18 },
+    { id: 4, name: "Dr. Michael Rodriguez", specialty: "Pediatric Audiologist", distance: 4.2, languages: ["English", "Spanish", "Portuguese"], rating: 4.7, availability: "Next: Wed 1:00 PM", experience: 10 },
+    { id: 5, name: "Dr. Emily Thompson", specialty: "Early Intervention Specialist", distance: 6.8, languages: ["English", "French"], rating: 4.8, availability: "Next: Fri 9:00 AM", experience: 14 },
+  ]);
 
   const wsRef = useRef<WebSocket | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -128,10 +150,8 @@ const Dashboard = () => {
       const result = await response.json();
       
       if (result.status === 'success') {
-        // Set uploaded audio features
         setAudioFeatures(result.uploaded_features);
         
-        // Set base audio features if available
         if (result.base_features) {
           setBaseFeatures(result.base_features);
           setProcessingStatus('Comparison complete! Displaying results...');
@@ -139,7 +159,6 @@ const Dashboard = () => {
           setProcessingStatus('Audio analyzed (no base reference found)');
         }
         
-        // Update analysis results
         if (result.analysis) {
           const analysis = result.analysis;
           
@@ -170,6 +189,82 @@ const Dashboard = () => {
     }
   };
 
+  const handleDownloadReport = () => {
+    const reportContent = `
+MIMICOO - BABY BABBLE ANALYSIS REPORT
+Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}
+=====================================
+
+AUDIO ANALYSIS SUMMARY:
+${audioFeatures ? `
+- Duration: ${audioFeatures.duration}s
+- Average Pitch: ${audioFeatures.avg_pitch} Hz
+- Pitch Variability: ${audioFeatures.pitch_variability.toFixed(2)}
+- Average Energy: ${audioFeatures.avg_energy.toFixed(4)}
+- Voicing Ratio: ${(audioFeatures.voicing_ratio * 100).toFixed(1)}%
+` : 'No audio analyzed yet'}
+
+${baseFeatures ? `
+BASE REFERENCE COMPARISON:
+- Base Average Pitch: ${baseFeatures.avg_pitch} Hz
+- Base Average Energy: ${baseFeatures.avg_energy.toFixed(4)}
+- Pitch Difference: ${Math.abs(audioFeatures!.avg_pitch - baseFeatures.avg_pitch).toFixed(2)} Hz
+` : ''}
+
+RISK ASSESSMENT:
+${riskAssessment.map(item => `
+${item.condition}
+- Risk Level: ${item.risk}%
+- Status: ${item.status}
+`).join('\n')}
+
+KEY FINDINGS:
+${keyFindings}
+
+${nextSteps.length > 0 ? `
+RECOMMENDED NEXT STEPS:
+${nextSteps.map((step, i) => `${i + 1}. ${step}`).join('\n')}
+` : ''}
+
+IMPORTANT DISCLAIMER:
+This analysis is for informational purposes only and does not constitute 
+medical advice. Please consult with qualified healthcare professionals 
+for proper diagnosis and treatment recommendations.
+
+=====================================
+© 2025 Mimicoo - Baby Babble Analysis System
+    `;
+
+    const blob = new Blob([reportContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mimicoo-report-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const getFilteredDoctors = () => {
+    let filtered = [...doctors];
+    
+    if (selectedLanguage !== 'all') {
+      filtered = filtered.filter(doc => doc.languages.includes(selectedLanguage));
+    }
+    
+    filtered.sort((a, b) => {
+      if (sortBy === 'distance') return a.distance - b.distance;
+      if (sortBy === 'rating') return b.rating - a.rating;
+      if (sortBy === 'experience') return b.experience - a.experience;
+      return 0;
+    });
+    
+    return filtered;
+  };
+
+  const allLanguages = Array.from(new Set(doctors.flatMap(d => d.languages)));
+
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -190,7 +285,6 @@ const Dashboard = () => {
     const sampleStep = Math.ceil(pitchData.length / 100);
     const width = 800;
 
-    // Generate points for uploaded audio
     const uploadedPoints = pitchData
       .filter((_: number, i: number) => i % sampleStep === 0)
       .map((pitch: number, i: number, arr: number[]) => {
@@ -200,7 +294,6 @@ const Dashboard = () => {
       })
       .join(' ');
 
-    // Generate points for base audio
     let basePoints = '';
     if (baseFeatures && basePitchData.length > 0) {
       const baseSampleStep = Math.ceil(basePitchData.length / 100);
@@ -217,14 +310,12 @@ const Dashboard = () => {
     return (
       <div className="h-64 px-4 pb-8 relative">
         <svg width="100%" height="240" viewBox={`0 0 ${width} 240`} preserveAspectRatio="none" className="overflow-visible">
-          {/* Grid lines */}
           <line x1="0" y1="240" x2={width} y2="240" stroke="#D2AB80" strokeOpacity="0.3" strokeWidth="1" vectorEffect="non-scaling-stroke" />
           <line x1="0" y1="180" x2={width} y2="180" stroke="#D2AB80" strokeOpacity="0.2" strokeWidth="1" vectorEffect="non-scaling-stroke" />
           <line x1="0" y1="120" x2={width} y2="120" stroke="#D2AB80" strokeOpacity="0.2" strokeWidth="1" vectorEffect="non-scaling-stroke" />
           <line x1="0" y1="60" x2={width} y2="60" stroke="#D2AB80" strokeOpacity="0.2" strokeWidth="1" vectorEffect="non-scaling-stroke" />
           <line x1="0" y1="0" x2={width} y2="0" stroke="#D2AB80" strokeOpacity="0.2" strokeWidth="1" vectorEffect="non-scaling-stroke" />
           
-          {/* Base audio line */}
           {baseFeatures && basePoints && (
             <polyline
               points={basePoints}
@@ -237,7 +328,6 @@ const Dashboard = () => {
             />
           )}
           
-          {/* Uploaded audio line */}
           <polyline
             points={uploadedPoints}
             fill="none"
@@ -249,11 +339,9 @@ const Dashboard = () => {
           />
         </svg>
         
-        {/* Y-axis labels */}
         <div className="absolute left-0 bottom-0 text-xs text-[#725C3A]/50">0 Hz</div>
         <div className="absolute left-0 top-0 text-xs text-[#725C3A]/50">{maxPitchOverall.toFixed(0)} Hz</div>
         
-        {/* Legend */}
         <div className="absolute top-0 right-4 flex gap-4 text-xs text-[#725C3A]">
           <div className="flex items-center gap-2">
             <div className="w-8 h-0.5 bg-[#2E7D32]"></div>
@@ -267,7 +355,6 @@ const Dashboard = () => {
           )}
         </div>
         
-        {/* X-axis time labels */}
         <div className="absolute -bottom-6 left-0 right-0 flex justify-between text-xs text-[#725C3A]/50">
           <span>0s</span>
           <span>{(pitchTimes[pitchTimes.length - 1] || 0).toFixed(1)}s</span>
@@ -290,7 +377,6 @@ const Dashboard = () => {
     const sampleStep = Math.ceil(rmsData.length / 100);
     const width = 800;
 
-    // Generate points for uploaded audio
     const uploadedPoints = rmsData
       .filter((_: number, i: number) => i % sampleStep === 0)
       .map((rms: number, i: number, arr: number[]) => {
@@ -300,7 +386,6 @@ const Dashboard = () => {
       })
       .join(' ');
 
-    // Generate points for base audio
     let basePoints = '';
     if (baseFeatures && baseRMSData.length > 0) {
       const baseSampleStep = Math.ceil(baseRMSData.length / 100);
@@ -317,14 +402,12 @@ const Dashboard = () => {
     return (
       <div className="h-64 px-4 pb-8 relative">
         <svg width="100%" height="240" viewBox={`0 0 ${width} 240`} preserveAspectRatio="none" className="overflow-visible">
-          {/* Grid lines */}
           <line x1="0" y1="240" x2={width} y2="240" stroke="#D2AB80" strokeOpacity="0.3" strokeWidth="1" vectorEffect="non-scaling-stroke" />
           <line x1="0" y1="180" x2={width} y2="180" stroke="#D2AB80" strokeOpacity="0.2" strokeWidth="1" vectorEffect="non-scaling-stroke" />
           <line x1="0" y1="120" x2={width} y2="120" stroke="#D2AB80" strokeOpacity="0.2" strokeWidth="1" vectorEffect="non-scaling-stroke" />
           <line x1="0" y1="60" x2={width} y2="60" stroke="#D2AB80" strokeOpacity="0.2" strokeWidth="1" vectorEffect="non-scaling-stroke" />
           <line x1="0" y1="0" x2={width} y2="0" stroke="#D2AB80" strokeOpacity="0.2" strokeWidth="1" vectorEffect="non-scaling-stroke" />
           
-          {/* Base audio line */}
           {baseFeatures && basePoints && (
             <polyline
               points={basePoints}
@@ -337,7 +420,6 @@ const Dashboard = () => {
             />
           )}
           
-          {/* Uploaded audio line */}
           <polyline
             points={uploadedPoints}
             fill="none"
@@ -349,11 +431,9 @@ const Dashboard = () => {
           />
         </svg>
         
-        {/* Y-axis labels */}
         <div className="absolute left-0 bottom-0 text-xs text-[#725C3A]/50">0</div>
         <div className="absolute left-0 top-0 text-xs text-[#725C3A]/50">{maxRMSOverall.toFixed(4)}</div>
         
-        {/* Legend */}
         <div className="absolute top-0 right-4 flex gap-4 text-xs text-[#725C3A]">
           <div className="flex items-center gap-2">
             <div className="w-8 h-0.5 bg-[#FF9800]"></div>
@@ -367,7 +447,6 @@ const Dashboard = () => {
           )}
         </div>
         
-        {/* X-axis time labels */}
         <div className="absolute -bottom-6 left-0 right-0 flex justify-between text-xs text-[#725C3A]/50">
           <span>0s</span>
           <span>{(rmsTimes[rmsTimes.length - 1] || 0).toFixed(1)}s</span>
@@ -390,7 +469,6 @@ const Dashboard = () => {
                   <p className="text-xs text-[#E5D2B8]">Real-time babble analysis</p>
                 </div>
             </button>
-            
           </div>
           
           <div className="flex items-center gap-4">
@@ -679,19 +757,159 @@ const Dashboard = () => {
               <h3 className="font-semibold mb-4 text-[#725C3A]">Quick Actions</h3>
               <div className="space-y-2">
                 <button 
+                  onClick={() => window.location.href = '/learning'}
                   className="w-full py-3 bg-[#D2AB80]/30 hover:bg-[#D2AB80]/40 border border-[#D2AB80]/50 rounded-xl text-sm font-medium text-[#725C3A] transition-all flex items-center justify-center gap-2 hover:cursor-pointer"
                 >
                   <FileText className="w-4 h-4" />
                   View Learning Resources
                 </button>
+<<<<<<< HEAD
                 <button className="w-full py-3 bg-[#D2AB80]/30 hover:bg-[#D2AB80]/40 border border-[#D2AB80]/50 text-[#725C3A] rounded-xl text-sm font-medium transition-all">
                   Download Report (PDF)
+=======
+                <button 
+                  onClick={handleDownloadReport}
+                  disabled={!audioFeatures}
+                  className="w-full py-3 bg-[#809671] hover:bg-[#6d8060] text-white rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:cursor-pointer"
+                >
+                  <FileText className="w-4 h-4" />
+                  Download Report
+                </button>
+                <button 
+                  onClick={() => setShowDoctorModal(true)}
+                  className="w-full py-3 bg-gradient-to-r from-[#809671] to-[#B3B792] hover:from-[#6d8060] hover:to-[#9da47d] text-white rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 hover:cursor-pointer shadow-md"
+                >
+                  <User className="w-4 h-4" />
+                  Find Nearby Doctors
+>>>>>>> 52cb594abc40845d7089fa894efed7be1a150b42
                 </button>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Doctor Finder Modal */}
+      {showDoctorModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+            <div className="bg-gradient-to-r from-[#809671] to-[#B3B792] p-6 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold mb-1">Find Nearby Specialists</h2>
+                  <p className="text-sm text-white/90">Connect with qualified professionals in your area</p>
+                </div>
+                <button 
+                  onClick={() => setShowDoctorModal(false)}
+                  className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-xl flex items-center justify-center transition-colors"
+                >
+                  <span className="text-2xl">×</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {/* Filters */}
+              <div className="flex flex-wrap gap-4 mb-6 pb-6 border-b border-[#D2AB80]/30">
+                <div className="flex-1 min-w-[200px]">
+                  <label className="block text-sm font-medium text-[#725C3A] mb-2">Language</label>
+                  <select 
+                    value={selectedLanguage}
+                    onChange={(e) => setSelectedLanguage(e.target.value)}
+                    className="w-full px-4 py-2 border border-[#D2AB80]/50 rounded-lg bg-white text-[#725C3A] focus:outline-none focus:ring-2 focus:ring-[#809671]"
+                  >
+                    <option value="all">All Languages</option>
+                    {allLanguages.map(lang => (
+                      <option key={lang} value={lang}>{lang}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex-1 min-w-[200px]">
+                  <label className="block text-sm font-medium text-[#725C3A] mb-2">Sort By</label>
+                  <select 
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="w-full px-4 py-2 border border-[#D2AB80]/50 rounded-lg bg-white text-[#725C3A] focus:outline-none focus:ring-2 focus:ring-[#809671]"
+                  >
+                    <option value="distance">Distance (Nearest)</option>
+                    <option value="rating">Rating (Highest)</option>
+                    <option value="experience">Experience (Most)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Doctor List */}
+              <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                {getFilteredDoctors().map((doctor) => (
+                  <div key={doctor.id} className="border border-[#D2AB80]/30 rounded-xl p-5 hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-[#E5E0D8]/20">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-start gap-4">
+                        <div className="w-14 h-14 bg-gradient-to-br from-[#809671] to-[#B3B792] rounded-xl flex items-center justify-center text-white text-xl font-bold">
+                          {doctor.name.split(' ').map(n => n[0]).join('')}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-lg text-[#725C3A]">{doctor.name}</h3>
+                          <p className="text-sm text-[#725C3A]/70">{doctor.specialty}</p>
+                          <div className="flex items-center gap-3 mt-2">
+                            <span className="text-xs bg-[#809671]/20 text-[#809671] px-2 py-1 rounded-full font-medium">
+                              {doctor.experience} years exp.
+                            </span>
+                            <span className="text-xs flex items-center gap-1 text-[#725C3A]/70">
+                              ⭐ {doctor.rating}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="flex items-center gap-1 text-[#809671] font-semibold">
+                          <span className="text-lg">{doctor.distance}</span>
+                          <span className="text-sm">km</span>
+                        </div>
+                        <p className="text-xs text-[#725C3A]/60 mt-1">away</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {doctor.languages.map(lang => (
+                        <span key={lang} className="text-xs bg-[#D2AB80]/20 text-[#725C3A] px-2 py-1 rounded-full">
+                          {lang}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3 border-t border-[#D2AB80]/20">
+                      <div className="flex items-center gap-2 text-sm text-[#725C3A]/70">
+                        <Activity className="w-4 h-4" />
+                        {doctor.availability}
+                      </div>
+                      <button className="px-4 py-2 bg-gradient-to-r from-[#809671] to-[#B3B792] hover:from-[#6d8060] hover:to-[#9da47d] text-white rounded-lg text-sm font-medium transition-all flex items-center gap-2 hover:cursor-pointer">
+                        Book Appointment
+                        <span>→</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {getFilteredDoctors().length === 0 && (
+                <div className="text-center py-12">
+                  <User className="w-16 h-16 mx-auto mb-4 text-[#725C3A]/30" />
+                  <p className="text-[#725C3A]/70">No doctors found matching your filters</p>
+                  <button 
+                    onClick={() => {
+                      setSelectedLanguage('all');
+                      setSortBy('distance');
+                    }}
+                    className="mt-4 text-sm text-[#809671] hover:underline"
+                  >
+                    Reset filters
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
