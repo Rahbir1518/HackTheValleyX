@@ -3,6 +3,7 @@ import {
   Baby, Mic, TrendingUp, Activity, CheckCircle, 
   Camera, BarChart3, Settings, FileText, Play, Pause, Volume2, User, Upload, Loader, Info
 } from 'lucide-react';
+import Logo from "./assets/Logo.svg";
 
 interface AudioFeatures {
   avg_pitch: number;
@@ -469,7 +470,8 @@ for proper diagnosis and treatment recommendations.
           <div className="flex items-center gap-3">
             <button onClick={() => window.location.href = '/'} className="flex items-center gap-3 hover:cursor-pointer">
                 <div className="w-10 h-10 bg-gradient-to-br from-[#809671] to-[#B3B792] rounded-xl flex items-center justify-center shadow-md">
-                  <Baby className="w-6 h-6 text-white" />
+                  {/* <Baby className="w-6 h-6 text-white" /> */}
+                  <img src={Logo}/>
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-white">Mimicoo Dashboard</h1>
