@@ -6,6 +6,7 @@ import {
   Trophy, Star, Zap, Target, Award, Flame, Gift, Crown, Medal,
   Sparkles
 } from 'lucide-react';
+import Logo from "./assets/Logo.svg";
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY; 
 const MODEL_NAME = "gemini-2.5-flash-preview-05-20";
@@ -675,7 +676,8 @@ const Learning = () => {
             <div className="flex items-center gap-3">
               <button onClick={() => window.location.href = '/'} className="flex items-center gap-3 hover:cursor-pointer">
                   <div className="w-10 h-10 bg-gradient-to-br from-[#809671] to-[#B3B792] rounded-xl flex items-center justify-center shadow-md">
-                    <Baby className="w-6 h-6 text-white" />
+                    {/* <Baby className="w-6 h-6 text-white" /> */}
+                    <img src={Logo}/>
                   </div>
                   <div>
                     <h1 className="text-xl font-bold text-white">Mimicoo Learning</h1>

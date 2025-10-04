@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react';
 import { Heart, Mic, TrendingUp, Shield, Globe, Sparkles, ChevronRight, Play, Brain, Baby, BarChart3 } from 'lucide-react';
+import Logo from "./assets/Logo.svg";
 
 const Home = () => {
   const navigate = useNavigate();
@@ -53,7 +54,8 @@ const Home = () => {
           <button onClick={() => window.location.href = '/'} className="flex items-center gap-3 hover:cursor-pointer">
             <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-[#809671] to-[#B3B792] rounded-full flex items-center justify-center">
-              <Baby className="w-6 h-6 text-white" />
+              {/* <Baby className="w-6 h-6 text-white" /> */}
+              <img src={Logo}/>
             </div>
             <span className="text-2xl font-bold text-[#725C3A]">Mimicoo</span>
           </div>
