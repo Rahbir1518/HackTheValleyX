@@ -4,9 +4,12 @@ import {
   Baby, Mic, RefreshCw, Volume2, CheckCircle,
   Settings, User, Play, Pause, Loader, TrendingUp, BookOpen,
   Trophy, Star, Zap, Target, Award, Flame, Gift, Crown, Medal,
-  Sparkles
+  Sparkles, X
 } from 'lucide-react';
 import Logo from "./assets/Logo.svg";
+import SadSvg from "./assets/sad.svg";
+import SmileSvg from "./assets/smile.svg";
+import HappySvg from "./assets/happy.svg";
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY; 
 const MODEL_NAME = "gemini-2.5-flash-preview-05-20";
@@ -93,6 +96,7 @@ const Learning = () => {
   const [earnedPoints, setEarnedPoints] = useState<number>(0);
   const [newAchievement, setNewAchievement] = useState<Achievement | null>(null);
   const [comboMultiplier, setComboMultiplier] = useState<number>(1);
+  const [showEmotionPopup, setShowEmotionPopup] = useState<boolean>(false);
 
   const [gameState, setGameState] = useState<GameState>({
     level: 1,
@@ -516,6 +520,10 @@ const Learning = () => {
           const validatedResult = validateAnalysisResult(result, currentSentence);
           setAnalysisResult(validatedResult);
           updateGameState(validatedResult.score);
+          
+          // Show emotion popup when analysis is complete
+          setShowEmotionPopup(true);
+          setTimeout(() => setShowEmotionPopup(false), 3000);
         } catch (parseError) {
           console.error('Failed to parse AI response JSON:', parseError);
           setAnalysisResult(getFallbackAnalysis('parse_error'));
@@ -547,6 +555,41 @@ const Learning = () => {
     if (score >= 80) return 'bg-[#809671]';
     if (score >= 60) return 'bg-yellow-500';
     return 'bg-red-500';
+  };
+
+  // Get emotion SVG based on score
+  const getEmotionSvg = (score: number): string => {
+    if (score >= 85) return HappySvg;
+    if (score >= 70) return SmileSvg;
+    return SadSvg;
+  };
+
+  // Get emotion animation class based on score
+  const getEmotionAnimation = (score: number): string => {
+    if (score >= 85) return 'animate-bounce animate-pulse';
+    if (score >= 70) return 'animate-pulse';
+    return 'animate-wiggle';
+  };-+
+
+  // Get popup animation class based on score
+  const getPopupAnimation = (score: number): string => {
+    if (score >= 85) return 'animate-popup-happy';
+    if (score >= 70) return 'animate-popup-smile';
+    return 'animate-popup-sad';
+  };
+
+  // Get popup background gradient based on score
+  const getPopupGradient = (score: number): string => {
+    if (score >= 85) return 'from-green-400 to-emerald-500';
+    if (score >= 70) return 'from-yellow-400 to-amber-500';
+    return 'from-red-400 to-rose-500';
+  };
+
+  // Get popup message based on score
+  const getPopupMessage = (score: number): string => {
+    if (score >= 85) return 'Excellent! Amazing job! 🎉';
+    if (score >= 70) return 'Good job! Keep practicing! 👍';
+    return 'Keep trying! You can do better! 💪';
   };
 
   // Age indicator component
@@ -611,6 +654,68 @@ const Learning = () => {
               opacity: 1;
             }
           }
+          @keyframes wiggle {
+            0%, 100% { transform: rotate(-3deg); }
+            50% { transform: rotate(3deg); }
+          }
+          @keyframes popup-happy {
+            0% {
+              transform: scale(0.3) rotate(-180deg);
+              opacity: 0;
+            }
+            50% {
+              transform: scale(1.1) rotate(10deg);
+            }
+            70% {
+              transform: scale(0.95) rotate(-5deg);
+            }
+            100% {
+              transform: scale(1) rotate(0deg);
+              opacity: 1;
+            }
+          }
+          @keyframes popup-smile {
+            0% {
+              transform: scale(0.5) translateY(100px);
+              opacity: 0;
+            }
+            60% {
+              transform: scale(1.05) translateY(-10px);
+            }
+            80% {
+              transform: scale(0.98) translateY(5px);
+            }
+            100% {
+              transform: scale(1) translateY(0);
+              opacity: 1;
+            }
+          }
+          @keyframes popup-sad {
+            0% {
+              transform: scale(0.8) translateY(-100px);
+              opacity: 0;
+            }
+            50% {
+              transform: scale(1.1) translateY(20px);
+            }
+            70% {
+              transform: scale(0.95) translateY(-10px);
+            }
+            100% {
+              transform: scale(1) translateY(0);
+              opacity: 1;
+            }
+          }
+          @keyframes confetti {
+            0% {
+              transform: translateY(-100px) rotate(0deg);
+              opacity: 1;
+            }
+            100% {
+              transform: translateY(100vh) rotate(360deg);
+              opacity: 0;
+            }
+          }
           .animate-slideInUp {
             animation: slideInUp 0.5s ease-out;
           }
@@ -620,10 +725,107 @@ const Learning = () => {
           .animate-pulse-glow {
             animation: pulse-glow 2s ease-in-out infinite;
           }
+          .animate-wiggle {
+            animation: wiggle 0.5s ease-in-out infinite;
+          }
+          .animate-popup-happy {
+            animation: popup-happy 1s ease-out forwards;
+          }
+          .animate-popup-smile {
+            animation: popup-smile 0.8s ease-out forwards;
+          }
+          .animate-popup-sad {
+            animation: popup-sad 0.8s ease-out forwards;
+          }
+          .animate-confetti {
+            animation: confetti 3s linear forwards;
+          }
         `}
       </style>
 
-      {showLevelUp && (
+      {/* Emotion Popup Modal */}
+      {showEmotionPopup && analysisResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+          
+          {/* Confetti for high scores */}
+          {analysisResult.score >= 85 && (
+            <>
+              {Array.from({ length: 50 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute top-0 w-3 h-3 rounded-full animate-confetti pointer-events-none"
+                  style={{
+                    left: `${Math.random() * 100}%`,
+                    backgroundColor: `hsl(${Math.random() * 360}, 100%, 50%)`,
+                    animationDelay: `${Math.random() * 2}s`,
+                    animationDuration: `${1 + Math.random() * 2}s`
+                  }}
+                />
+              ))}
+            </>
+          )}
+
+          <div className={`relative bg-gradient-to-br ${getPopupGradient(analysisResult.score)} rounded-3xl p-8 shadow-2xl border-4 border-white/30 ${getPopupAnimation(analysisResult.score)} max-w-md w-full mx-4 pointer-events-auto`}>
+            <button
+              onClick={() => setShowEmotionPopup(false)}
+              className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors z-10"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            
+            <div className="text-center">
+              <div className="mb-6">
+                <img 
+                  src={getEmotionSvg(analysisResult.score)} 
+                  alt="Score emotion" 
+                  className="w-48 h-48 mx-auto drop-shadow-2xl"
+                />
+              </div>
+              
+              <h2 className="text-4xl font-black text-white mb-4 drop-shadow-lg">
+                {analysisResult.score} Points!
+              </h2>
+              
+              <p className="text-2xl font-bold text-white mb-6 drop-shadow-lg">
+                {getPopupMessage(analysisResult.score)}
+              </p>
+              
+              <div className="flex justify-center items-center gap-4 mb-6">
+                <div className="bg-white/20 rounded-full p-3 backdrop-blur-sm">
+                  <Sparkles className="w-8 h-8 text-white animate-pulse" />
+                </div>
+                <div className="bg-white/20 rounded-full p-3 backdrop-blur-sm">
+                  <Trophy className="w-8 h-8 text-yellow-300 animate-bounce" />
+                </div>
+                <div className="bg-white/20 rounded-full p-3 backdrop-blur-sm">
+                  <Star className="w-8 h-8 text-white animate-spin" />
+                </div>
+              </div>
+              
+              {comboMultiplier > 1 && (
+                <div className="bg-white/30 rounded-2xl p-4 backdrop-blur-sm mb-4">
+                  <p className="text-lg font-bold text-white">
+                    🔥 {comboMultiplier}x Combo Multiplier!
+                  </p>
+                  <p className="text-sm text-white/90 mt-1">
+                    Keep scoring 80+ to maintain your streak!
+                  </p>
+                </div>
+              )}
+              
+              <button
+                onClick={() => setShowEmotionPopup(false)}
+                className="bg-white/30 hover:bg-white/40 text-white font-bold py-3 px-8 rounded-2xl transition-all backdrop-blur-sm border-2 border-white/50 hover:scale-105 active:scale-95"
+              >
+                Continue Practice
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* {showLevelUp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
           <div className="animate-slideInUp bg-gradient-to-br from-yellow-400 to-orange-500 text-white px-12 py-8 rounded-3xl shadow-2xl border-4 border-yellow-300">
             <div className="text-center">
@@ -634,7 +836,7 @@ const Learning = () => {
             </div>
           </div>
         </div>
-      )}
+      )} */}
 
       {newAchievement && (
         <div className="fixed top-24 right-6 z-50 animate-slideInUp">
@@ -676,8 +878,7 @@ const Learning = () => {
             <div className="flex items-center gap-3">
               <button onClick={() => window.location.href = '/'} className="flex items-center gap-3 hover:cursor-pointer">
                   <div className="w-10 h-10 bg-gradient-to-br from-[#809671] to-[#B3B792] rounded-xl flex items-center justify-center shadow-md">
-                    {/* <Baby className="w-6 h-6 text-white" /> */}
-                    <img src={Logo}/>
+                    <img src={Logo} alt="Mimicoo Logo" />
                   </div>
                   <div>
                     <h1 className="text-xl font-bold text-white">Mimicoo Learning</h1>
@@ -876,18 +1077,30 @@ const Learning = () => {
                       <p className="text-sm text-[#725C3A]/70">AI-powered feedback & scoring</p>
                     </div>
                   </div>
-                  <div className="text-center p-3 rounded-xl bg-gradient-to-br from-[#809671]/10 to-[#B3B792]/10 border-2 border-[#809671]/30">
-                    <p className="text-xs text-[#725C3A]/70 mb-1">Overall Score</p>
-                    <p className={`text-4xl font-black ${getScoreColor(analysisResult.score)}`}>
-                      {analysisResult.score}
-                    </p>
-                    <div className="flex items-center justify-center gap-1 mt-1">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Star 
-                          key={i} 
-                          className={`w-3 h-3 ${i < Math.floor(analysisResult.score / 20) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`}
-                        />
-                      ))}
+                  <div className="flex items-center gap-4">
+                    <div className="text-center p-3 rounded-xl bg-gradient-to-br from-[#809671]/10 to-[#B3B792]/10 border-2 border-[#809671]/30">
+                      <p className="text-xs text-[#725C3A]/70 mb-1">Overall Score</p>
+                      <p className={`text-4xl font-black ${getScoreColor(analysisResult.score)}`}>
+                        {analysisResult.score}
+                      </p>
+                      <div className="flex items-center justify-center gap-1 mt-1">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star 
+                            key={i} 
+                            className={`w-3 h-3 ${i < Math.floor(analysisResult.score / 20) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <div 
+                      className={`w-16 h-16 ${getEmotionAnimation(analysisResult.score)} cursor-pointer hover:scale-110 transition-transform`}
+                      onClick={() => setShowEmotionPopup(true)}
+                    >
+                      <img 
+                        src={getEmotionSvg(analysisResult.score)} 
+                        alt="Score emotion" 
+                        className="w-full h-full"
+                      />
                     </div>
                   </div>
                 </div>
