@@ -569,7 +569,7 @@ const Learning = () => {
     if (score >= 85) return 'animate-bounce animate-pulse';
     if (score >= 70) return 'animate-pulse';
     return 'animate-wiggle';
-  };-+
+  };
 
   // Get popup animation class based on score
   const getPopupAnimation = (score: number): string => {
