@@ -684,7 +684,7 @@ const Dashboard = () => {
                   <FileText className="w-4 h-4" />
                   View Learning Resources
                 </button>
-                <button className="w-full py-3 bg-[#D2AB80]/30 hover:bg-[#D2AB80]/40 border border-[#D2AB80]/50 text-[#725C3A] rounded-xl text-sm font-medium transition-all hover:cursor-pointer">
+                <button className="w-full py-3 bg-[#D2AB80]/30 hover:bg-[#D2AB80]/40 border border-[#D2AB80]/50 text-[#725C3A] rounded-xl text-sm font-medium transition-all">
                   Download Report (PDF)
                 </button>
               </div>
