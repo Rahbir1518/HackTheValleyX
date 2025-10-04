@@ -1,27 +1,65 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Baby, Mic, TrendingUp, Activity, CheckCircle, 
-  Camera, BarChart3, Settings, FileText, Play, Pause, Volume2, User
+  Camera, BarChart3, Settings, FileText, Play, Pause, Volume2, User, Upload, Loader
 } from 'lucide-react';
 
-const Dashboard = () => {
-  const [isMonitoring, setIsMonitoring] = useState(false);
-  const [audioLevel, setAudioLevel] = useState(0);
-  const [sessionTime, setSessionTime] = useState(0);
-  
-  const [babbleData, setBabbleData] = useState([
-    { time: '0s', canonical: 65, nonCanonical: 35, frequency: 45 },
-    { time: '5s', canonical: 70, nonCanonical: 30, frequency: 52 },
-    { time: '10s', canonical: 68, nonCanonical: 32, frequency: 48 },
-    { time: '15s', canonical: 72, nonCanonical: 28, frequency: 55 },
-    { time: '20s', canonical: 75, nonCanonical: 25, frequency: 60 },
-  ]);
+interface AudioFeatures {
+  avg_pitch: number;
+  pitch_variability: number;
+  avg_energy: number;
+  voicing_ratio: number;
+  duration: number;
+  pitch_time_series: number[];
+  pitch_timestamps: number[];
+  rms_time_series: number[];
+  rms_timestamps: number[];
+}
 
-  const riskAssessment = [
+interface RiskItem {
+  condition: string;
+  risk: number;
+  status: string;
+  color: string;
+}
+
+interface WebSocketMessage {
+  type: 'status' | 'features' | 'analysis' | 'complete' | 'error' | 'pong';
+  message?: string;
+  data?: any;
+}
+
+interface AnalysisResult {
+  risk_assessment: Array<{
+    condition: string;
+    risk_percentage: number;
+    status: string;
+    reasoning: string;
+  }>;
+  overall_status: string;
+  next_steps: string[];
+  key_findings: string;
+}
+
+const Dashboard = () => {
+  const [isMonitoring, setIsMonitoring] = useState<boolean>(false);
+  const [audioLevel, setAudioLevel] = useState<number>(0);
+  const [sessionTime, setSessionTime] = useState<number>(0);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [processingStatus, setProcessingStatus] = useState<string>('');
+  
+  const [audioFeatures, setAudioFeatures] = useState<AudioFeatures | null>(null);
+  const [baseFeatures, setBaseFeatures] = useState<AudioFeatures | null>(null);
+  const [riskAssessment, setRiskAssessment] = useState<RiskItem[]>([
     { condition: "Autism Spectrum Disorder (ASD)", risk: 12, status: "Low Risk", color: "bg-[#809671]" },
     { condition: "Developmental Language Disorder (DLD)", risk: 8, status: "Very Low Risk", color: "bg-[#809671]" },
     { condition: "Hearing Impairment", risk: 5, status: "Minimal Risk", color: "bg-[#809671]" },
-  ];
+  ]);
+  const [nextSteps, setNextSteps] = useState<string[]>([]);
+  const [keyFindings, setKeyFindings] = useState<string>("Upload audio to begin analysis");
+
+  const wsRef = useRef<WebSocket | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const metrics = [
     { label: "Sessions Today", value: "3", icon: <Activity className="w-5 h-5" /> },
@@ -31,25 +69,39 @@ const Dashboard = () => {
   ];
 
   useEffect(() => {
-    let interval: number | undefined;
+    wsRef.current = new WebSocket('ws://localhost:8000/ws');
+    
+    wsRef.current.onopen = () => {
+      console.log('WebSocket connected');
+    };
+    
+    wsRef.current.onmessage = (event: MessageEvent) => {
+      const message: WebSocketMessage = JSON.parse(event.data);
+      
+      if (message.type === 'status') {
+        setProcessingStatus(message.message || '');
+      } else if (message.type === 'pong') {
+        console.log('WebSocket ping successful');
+      }
+    };
+    
+    wsRef.current.onerror = (error: Event) => {
+      console.error('WebSocket error:', error);
+    };
+    
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout | undefined;
     if (isMonitoring) {
       interval = setInterval(() => {
         setAudioLevel(Math.random() * 100);
         setSessionTime(prev => prev + 1);
-        
-        setBabbleData(prev => {
-          const newData = [...prev];
-          if (newData.length > 20) newData.shift();
-          
-          newData.push({
-            time: `${prev.length * 5}s`,
-            canonical: 65 + Math.random() * 15,
-            nonCanonical: 25 + Math.random() * 15,
-            frequency: 40 + Math.random() * 25
-          });
-          
-          return newData;
-        });
       }, 1000);
     }
     return () => {
@@ -57,15 +109,272 @@ const Dashboard = () => {
     };
   }, [isMonitoring]);
 
-  const formatTime = (seconds: number) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessing(true);
+    setProcessingStatus('Uploading and analyzing audio...');
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('http://localhost:8000/upload-base-audio', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+      
+      if (result.status === 'success') {
+        // Set uploaded audio features
+        setAudioFeatures(result.uploaded_features);
+        
+        // Set base audio features if available
+        if (result.base_features) {
+          setBaseFeatures(result.base_features);
+          setProcessingStatus('Comparison complete! Displaying results...');
+        } else {
+          setProcessingStatus('Audio analyzed (no base reference found)');
+        }
+        
+        // Update analysis results
+        if (result.analysis) {
+          const analysis = result.analysis;
+          
+          const updatedRisks: RiskItem[] = analysis.risk_assessment.map((item: any) => ({
+            condition: item.condition,
+            risk: item.risk_percentage,
+            status: item.status,
+            color: item.risk_percentage < 30 ? "bg-[#809671]" : 
+                   item.risk_percentage < 60 ? "bg-yellow-500" : "bg-red-500"
+          }));
+          setRiskAssessment(updatedRisks);
+          
+          setNextSteps(analysis.next_steps || []);
+          setKeyFindings(analysis.key_findings || "Analysis complete");
+        }
+        
+        setTimeout(() => {
+          setIsProcessing(false);
+          setProcessingStatus('');
+        }, 2000);
+      } else {
+        setProcessingStatus('Upload failed: ' + result.message);
+        setIsProcessing(false);
+      }
+    } catch (error) {
+      setProcessingStatus('Upload error: ' + (error as Error).message);
+      setIsProcessing(false);
+    }
+  };
+
+  const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const maxCanonical = Math.max(...babbleData.map(d => d.canonical));
-  const maxNonCanonical = Math.max(...babbleData.map(d => d.nonCanonical));
-  const maxValue = Math.max(maxCanonical, maxNonCanonical);
+  const renderPitchGraph = () => {
+    if (!audioFeatures || !audioFeatures.pitch_time_series) return null;
+
+    const pitchData = audioFeatures.pitch_time_series;
+    const pitchTimes = audioFeatures.pitch_timestamps;
+    const maxPitch = Math.max(...pitchData.filter(p => p > 0));
+    
+    const basePitchData = baseFeatures?.pitch_time_series || [];
+    const baseMaxPitch = basePitchData.length > 0 ? Math.max(...basePitchData.filter(p => p > 0)) : 0;
+    const maxPitchOverall = Math.max(maxPitch, baseMaxPitch, 100);
+    
+    const sampleStep = Math.ceil(pitchData.length / 100);
+    const width = 800;
+
+    // Generate points for uploaded audio
+    const uploadedPoints = pitchData
+      .filter((_: number, i: number) => i % sampleStep === 0)
+      .map((pitch: number, i: number, arr: number[]) => {
+        const x = (i / (arr.length - 1)) * width;
+        const y = pitch > 0 ? 240 - (pitch / maxPitchOverall) * 240 : 240;
+        return `${x},${y}`;
+      })
+      .join(' ');
+
+    // Generate points for base audio
+    let basePoints = '';
+    if (baseFeatures && basePitchData.length > 0) {
+      const baseSampleStep = Math.ceil(basePitchData.length / 100);
+      basePoints = basePitchData
+        .filter((_: number, i: number) => i % baseSampleStep === 0)
+        .map((pitch: number, i: number, arr: number[]) => {
+          const x = (i / (arr.length - 1)) * width;
+          const y = pitch > 0 ? 240 - (pitch / maxPitchOverall) * 240 : 240;
+          return `${x},${y}`;
+        })
+        .join(' ');
+    }
+
+    return (
+      <div className="h-64 px-4 pb-8 relative">
+        <svg width="100%" height="240" viewBox={`0 0 ${width} 240`} preserveAspectRatio="none" className="overflow-visible">
+          {/* Grid lines */}
+          <line x1="0" y1="240" x2={width} y2="240" stroke="#D2AB80" strokeOpacity="0.3" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          <line x1="0" y1="180" x2={width} y2="180" stroke="#D2AB80" strokeOpacity="0.2" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          <line x1="0" y1="120" x2={width} y2="120" stroke="#D2AB80" strokeOpacity="0.2" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          <line x1="0" y1="60" x2={width} y2="60" stroke="#D2AB80" strokeOpacity="0.2" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          <line x1="0" y1="0" x2={width} y2="0" stroke="#D2AB80" strokeOpacity="0.2" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          
+          {/* Base audio line */}
+          {baseFeatures && basePoints && (
+            <polyline
+              points={basePoints}
+              fill="none"
+              stroke="#FF6B35"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          )}
+          
+          {/* Uploaded audio line */}
+          <polyline
+            points={uploadedPoints}
+            fill="none"
+            stroke="#2E7D32"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+        
+        {/* Y-axis labels */}
+        <div className="absolute left-0 bottom-0 text-xs text-[#725C3A]/50">0 Hz</div>
+        <div className="absolute left-0 top-0 text-xs text-[#725C3A]/50">{maxPitchOverall.toFixed(0)} Hz</div>
+        
+        {/* Legend */}
+        <div className="absolute top-0 right-4 flex gap-4 text-xs text-[#725C3A]">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-0.5 bg-[#2E7D32]"></div>
+            <span>Uploaded</span>
+          </div>
+          {baseFeatures && (
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-0.5 bg-[#FF6B35]"></div>
+              <span>Base</span>
+            </div>
+          )}
+        </div>
+        
+        {/* X-axis time labels */}
+        <div className="absolute -bottom-6 left-0 right-0 flex justify-between text-xs text-[#725C3A]/50">
+          <span>0s</span>
+          <span>{(pitchTimes[pitchTimes.length - 1] || 0).toFixed(1)}s</span>
+        </div>
+      </div>
+    );
+  };
+
+  const renderEnergyGraph = () => {
+    if (!audioFeatures || !audioFeatures.rms_time_series) return null;
+
+    const rmsData = audioFeatures.rms_time_series;
+    const rmsTimes = audioFeatures.rms_timestamps;
+    const maxRMS = Math.max(...rmsData);
+    
+    const baseRMSData = baseFeatures?.rms_time_series || [];
+    const baseMaxRMS = baseRMSData.length > 0 ? Math.max(...baseRMSData) : 0;
+    const maxRMSOverall = Math.max(maxRMS, baseMaxRMS, 0.001);
+    
+    const sampleStep = Math.ceil(rmsData.length / 100);
+    const width = 800;
+
+    // Generate points for uploaded audio
+    const uploadedPoints = rmsData
+      .filter((_: number, i: number) => i % sampleStep === 0)
+      .map((rms: number, i: number, arr: number[]) => {
+        const x = (i / (arr.length - 1)) * width;
+        const y = 240 - (rms / maxRMSOverall) * 240;
+        return `${x},${y}`;
+      })
+      .join(' ');
+
+    // Generate points for base audio
+    let basePoints = '';
+    if (baseFeatures && baseRMSData.length > 0) {
+      const baseSampleStep = Math.ceil(baseRMSData.length / 100);
+      basePoints = baseRMSData
+        .filter((_: number, i: number) => i % baseSampleStep === 0)
+        .map((rms: number, i: number, arr: number[]) => {
+          const x = (i / (arr.length - 1)) * width;
+          const y = 240 - (rms / maxRMSOverall) * 240;
+          return `${x},${y}`;
+        })
+        .join(' ');
+    }
+
+    return (
+      <div className="h-64 px-4 pb-8 relative">
+        <svg width="100%" height="240" viewBox={`0 0 ${width} 240`} preserveAspectRatio="none" className="overflow-visible">
+          {/* Grid lines */}
+          <line x1="0" y1="240" x2={width} y2="240" stroke="#D2AB80" strokeOpacity="0.3" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          <line x1="0" y1="180" x2={width} y2="180" stroke="#D2AB80" strokeOpacity="0.2" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          <line x1="0" y1="120" x2={width} y2="120" stroke="#D2AB80" strokeOpacity="0.2" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          <line x1="0" y1="60" x2={width} y2="60" stroke="#D2AB80" strokeOpacity="0.2" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          <line x1="0" y1="0" x2={width} y2="0" stroke="#D2AB80" strokeOpacity="0.2" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          
+          {/* Base audio line */}
+          {baseFeatures && basePoints && (
+            <polyline
+              points={basePoints}
+              fill="none"
+              stroke="#9C27B0"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          )}
+          
+          {/* Uploaded audio line */}
+          <polyline
+            points={uploadedPoints}
+            fill="none"
+            stroke="#FF9800"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+        
+        {/* Y-axis labels */}
+        <div className="absolute left-0 bottom-0 text-xs text-[#725C3A]/50">0</div>
+        <div className="absolute left-0 top-0 text-xs text-[#725C3A]/50">{maxRMSOverall.toFixed(4)}</div>
+        
+        {/* Legend */}
+        <div className="absolute top-0 right-4 flex gap-4 text-xs text-[#725C3A]">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-0.5 bg-[#FF9800]"></div>
+            <span>Uploaded</span>
+          </div>
+          {baseFeatures && (
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-0.5 bg-[#9C27B0]"></div>
+              <span>Base</span>
+            </div>
+          )}
+        </div>
+        
+        {/* X-axis time labels */}
+        <div className="absolute -bottom-6 left-0 right-0 flex justify-between text-xs text-[#725C3A]/50">
+          <span>0s</span>
+          <span>{(rmsTimes[rmsTimes.length - 1] || 0).toFixed(1)}s</span>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#E5E0D8] to-[#E5D2B8]">
@@ -180,58 +489,78 @@ const Dashboard = () => {
                     Stop Monitoring
                   </button>
                 )}
-                <button className="px-6 py-3 bg-[#D2AB80]/30 hover:bg-[#D2AB80]/40 border border-[#D2AB80]/50 text-[#725C3A] rounded-xl font-semibold transition-all">
-                  Calibrate System
+                
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="audio/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isProcessing}
+                  className="px-6 py-3 bg-[#D2AB80]/30 hover:bg-[#D2AB80]/40 border border-[#D2AB80]/50 text-[#725C3A] rounded-xl font-semibold transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isProcessing ? <Loader className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
+                  Upload Audio
                 </button>
               </div>
+              
+              {processingStatus && (
+                <div className="mt-3 text-sm text-center text-[#809671] font-medium">
+                  {processingStatus}
+                </div>
+              )}
             </div>
 
-            <div className="bg-white/90 backdrop-blur-sm border border-[#D2AB80]/30 rounded-2xl p-6 shadow-md">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[#809671]/20 rounded-xl flex items-center justify-center">
-                    <TrendingUp className="w-5 h-5 text-[#809671]" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-[#725C3A]">Babble Pattern Analysis</h3>
-                    <p className="text-sm text-[#725C3A]/70">Real-time vocal pattern tracking</p>
-                  </div>
-                </div>
-                <button className="text-sm text-[#809671] hover:text-[#6d8060]">Last 24 hours</button>
-              </div>
-
-              <div className="h-64 flex items-end gap-2 px-4 pb-8 relative">
-                <div className="absolute bottom-8 left-0 right-0 h-px bg-[#D2AB80]/30"></div>
-                {babbleData.slice(-12).map((data, i) => (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                    <div className="relative w-full flex flex-col items-center gap-0.5">
-                      <div 
-                        className="w-full bg-[#809671] rounded-t-sm transition-all"
-                        style={{ height: `${(data.canonical / maxValue) * 200}px` }}
-                      ></div>
-                      <div 
-                        className="w-full bg-[#D2AB80] transition-all"
-                        style={{ height: `${(data.nonCanonical / maxValue) * 200}px` }}
-                      ></div>
+            {audioFeatures && (
+              <>
+                <div className="bg-white/90 backdrop-blur-sm border border-[#D2AB80]/30 rounded-2xl p-6 shadow-md">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-[#809671]/20 rounded-xl flex items-center justify-center">
+                        <TrendingUp className="w-5 h-5 text-[#809671]" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-[#725C3A]">Pitch Analysis (F0)</h3>
+                        <p className="text-sm text-[#725C3A]/70">Voiced pitch over time - overlay comparison</p>
+                      </div>
                     </div>
-                    {i % 3 === 0 && (
-                      <span className="text-xs text-[#725C3A]/50 mt-1">{data.time}</span>
-                    )}
+                    <div className="text-right">
+                      <p className="text-sm text-[#725C3A]/70">Avg Pitch</p>
+                      <p className="text-lg font-bold text-[#2E7D32]">{audioFeatures.avg_pitch} Hz</p>
+                      {baseFeatures && (
+                        <p className="text-xs text-[#FF6B35] mt-1">Base: {baseFeatures.avg_pitch} Hz</p>
+                      )}
+                    </div>
                   </div>
-                ))}
-              </div>
+                  {renderPitchGraph()}
+                </div>
 
-              <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-[#D2AB80]/20">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-[#809671] rounded-full"></div>
-                  <span className="text-sm text-[#725C3A]/70">Canonical Babbling</span>
+                <div className="bg-white/90 backdrop-blur-sm border border-[#D2AB80]/30 rounded-2xl p-6 shadow-md">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-[#D2AB80]/30 rounded-xl flex items-center justify-center">
+                        <BarChart3 className="w-5 h-5 text-[#725C3A]" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-[#725C3A]">RMS Energy Analysis</h3>
+                        <p className="text-sm text-[#725C3A]/70">Vocal strength over time - overlay comparison</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-[#725C3A]/70">Avg Energy</p>
+                      <p className="text-lg font-bold text-[#FF9800]">{audioFeatures.avg_energy.toFixed(4)}</p>
+                      {baseFeatures && (
+                        <p className="text-xs text-[#9C27B0] mt-1">Base: {baseFeatures.avg_energy.toFixed(4)}</p>
+                      )}
+                    </div>
+                  </div>
+                  {renderEnergyGraph()}
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-[#D2AB80] rounded-full"></div>
-                  <span className="text-sm text-[#725C3A]/70">Non-Canonical</span>
-                </div>
-              </div>
-            </div>
+              </>
+            )}
           </div>
 
           <div className="space-y-6">
@@ -253,11 +582,27 @@ const Dashboard = () => {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-[#725C3A]/70">Audio Processed</span>
-                  <span className="text-sm font-medium text-[#725C3A]">960 samples</span>
+                  <span className="text-sm font-medium text-[#725C3A]">
+                    {audioFeatures ? '1 file' : '0 files'}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#725C3A]/70">Queue</span>
-                  <span className="text-sm font-medium text-[#725C3A]">0</span>
+                  <span className="text-sm text-[#725C3A]/70">Base Reference</span>
+                  <span className="text-sm font-medium text-[#725C3A]">
+                    {baseFeatures ? 'Loaded' : 'Not found'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-[#725C3A]/70">Duration</span>
+                  <span className="text-sm font-medium text-[#725C3A]">
+                    {audioFeatures ? `${audioFeatures.duration}s` : 'N/A'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-[#725C3A]/70">Voicing Ratio</span>
+                  <span className="text-sm font-medium text-[#725C3A]">
+                    {audioFeatures ? `${(audioFeatures.voicing_ratio * 100).toFixed(1)}%` : 'N/A'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -282,7 +627,7 @@ const Dashboard = () => {
                     </div>
                     <div className="w-full bg-[#E5E0D8] rounded-full h-2 mb-2">
                       <div 
-                        className={`h-2 rounded-full ${item.color}`}
+                        className={`h-2 rounded-full ${item.color} transition-all duration-500`}
                         style={{ width: `${item.risk}%` }}
                       ></div>
                     </div>
@@ -297,12 +642,28 @@ const Dashboard = () => {
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-[#809671] flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-medium text-[#809671]">Normal Development</p>
-                    <p className="text-xs text-[#725C3A]/70 mt-1">All metrics within expected ranges for age group</p>
+                    <p className="text-sm font-medium text-[#809671]">Key Findings</p>
+                    <p className="text-xs text-[#725C3A]/70 mt-1">{keyFindings}</p>
                   </div>
                 </div>
               </div>
             </div>
+
+            {nextSteps.length > 0 && (
+              <div className="bg-white/90 backdrop-blur-sm border border-[#D2AB80]/30 rounded-2xl p-6 shadow-md">
+                <h3 className="font-semibold mb-4 text-[#725C3A]">Recommended Next Steps</h3>
+                <div className="space-y-3">
+                  {nextSteps.map((step, i) => (
+                    <div key={i} className="flex items-start gap-3 p-3 bg-[#809671]/5 rounded-lg">
+                      <div className="w-6 h-6 bg-[#809671] text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
+                        {i + 1}
+                      </div>
+                      <p className="text-sm text-[#725C3A]">{step}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="bg-white/90 backdrop-blur-sm border border-[#D2AB80]/30 rounded-2xl p-6 shadow-md">
               <h3 className="font-semibold mb-4 text-[#725C3A]">Quick Actions</h3>
