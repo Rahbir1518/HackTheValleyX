@@ -563,13 +563,16 @@ const Learning = () => {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-[#809671] to-[#B3B792] rounded-xl flex items-center justify-center shadow-md">
-                <Baby className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-white">Mimicoo Learning</h1>
-                <p className="text-xs text-[#E5D2B8]">Speech practice & improvement</p>
-              </div>
+              <button onClick={() => window.location.href = '/'} className="flex items-center gap-3 hover:cursor-pointer">
+                  <div className="w-10 h-10 bg-gradient-to-br from-[#809671] to-[#B3B792] rounded-xl flex items-center justify-center shadow-md">
+                    <Baby className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-xl font-bold text-white">Mimicoo Learning</h1>
+                    <p className="text-xs text-[#E5D2B8]">Speech practice & improvement</p>
+                  </div>
+              </button>
+              
             </div>
             
             <div className="flex items-center gap-4">
@@ -585,10 +588,10 @@ const Learning = () => {
                 <span className="text-white/70 text-sm">Points</span>
               </div>
 
-              <button className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white">
+              <button className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white hover:cursor-pointer">
                 <Settings className="w-5 h-5" />
               </button>
-              <button className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white">
+              <button className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white hover:cursor-pointer">
                 <User className="w-5 h-5" />
               </button>
             </div>
@@ -634,7 +637,7 @@ const Learning = () => {
                 <button
                   onClick={generateSentence}
                   disabled={isGenerating || isRecording || isAnalyzing}
-                  className="px-4 py-2 bg-gradient-to-r from-[#809671] to-[#B3B792] hover:from-[#6d8060] hover:to-[#9da47d] text-white rounded-xl font-medium text-sm transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+                  className="px-4 py-2 bg-gradient-to-r from-[#809671] to-[#B3B792] hover:from-[#6d8060] hover:to-[#9da47d] text-white rounded-xl font-medium text-sm transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:cursor-pointer"
                 >
                   {isGenerating ? <Loader className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                   {isGenerating ? 'Generating...' : 'New Challenge'}
@@ -701,7 +704,7 @@ const Learning = () => {
                   <button
                     onClick={startRecording}
                     disabled={isGenerating || isAnalyzing}
-                    className="flex-1 bg-gradient-to-r from-[#809671] to-[#B3B792] hover:from-[#6d8060] hover:to-[#9da47d] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed animate-pulse-glow"
+                    className="flex-1 bg-gradient-to-r from-[#809671] to-[#B3B792] hover:from-[#6d8060] hover:to-[#9da47d] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed animate-pulse-glow hover:cursor-pointer"
                   >
                     <Play className="w-5 h-5" />
                     Start Recording
@@ -711,7 +714,7 @@ const Learning = () => {
                 {isRecording && (
                   <button
                     onClick={stopRecording}
-                    className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg"
+                    className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg hover:cursor-pointer"
                   >
                     <Pause className="w-5 h-5" />
                     Stop Recording
@@ -723,7 +726,7 @@ const Learning = () => {
                     <button
                       onClick={analyzeRecording}
                       disabled={isAnalyzing}
-                      className="flex-1 bg-gradient-to-r from-[#809671] to-[#B3B792] hover:from-[#6d8060] hover:to-[#9da47d] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 bg-gradient-to-r from-[#809671] to-[#B3B792] hover:from-[#6d8060] hover:to-[#9da47d] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:cursor-pointer"
                     >
                       {isAnalyzing ? <Loader className="w-5 h-5 animate-spin" /> : <TrendingUp className="w-5 h-5" />}
                       {isAnalyzing ? 'Analyzing...' : 'Analyze & Earn Points'}
@@ -734,7 +737,7 @@ const Learning = () => {
                         setAnalysisResult(null);
                       }}
                       disabled={isAnalyzing}
-                      className="px-6 py-3 bg-[#D2AB80]/30 hover:bg-[#D2AB80]/40 border border-[#D2AB80]/50 text-[#725C3A] rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-6 py-3 bg-[#D2AB80]/30 hover:bg-[#D2AB80]/40 border border-[#D2AB80]/50 text-[#725C3A] rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed "
                     >
                       Reset
                     </button>

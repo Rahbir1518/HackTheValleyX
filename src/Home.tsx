@@ -50,12 +50,15 @@ const Home = () => {
       {/* Navigation */}
       <nav className="fixed top-0 w-full bg-[#E5E0D8]/95 backdrop-blur-sm border-b border-[#D2AB80]/30 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <button onClick={() => window.location.href = '/'} className="flex items-center gap-3 hover:cursor-pointer">
+            <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-[#809671] to-[#B3B792] rounded-full flex items-center justify-center">
               <Baby className="w-6 h-6 text-white" />
             </div>
             <span className="text-2xl font-bold text-[#725C3A]">Mimicoo</span>
           </div>
+          </button>
+          
           <div className="hidden md:flex items-center gap-8">
             <a href="#features" className="hover:text-[#809671] transition-colors">Features</a>
             <a href="#how-it-works" className="hover:text-[#809671] transition-colors">How It Works</a>
@@ -64,7 +67,7 @@ const Home = () => {
             <SignedOut>
               <button 
                 onClick={() => navigate('/login')}
-                className="px-6 py-2 bg-[#809671] text-white rounded-full hover:bg-[#B3B792] transition-all transform hover:scale-105"
+                className="px-6 py-2 bg-[#809671] text-white rounded-full hover:bg-[#B3B792] transition-all transform hover:scale-105 hover:cursor-pointer"
               >
                 Sign In
               </button>
@@ -73,7 +76,7 @@ const Home = () => {
             <SignedIn>
               <button 
                 onClick={() => navigate('/dashboard')}
-                className="px-6 py-2 bg-[#809671] text-white rounded-full hover:bg-[#B3B792] transition-all"
+                className="px-6 py-2 bg-[#809671] text-white rounded-full hover:bg-[#B3B792] transition-all hover:cursor-pointer"
               >
                 Dashboard
               </button>
@@ -107,12 +110,12 @@ const Home = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <button 
                 onClick={() => navigate('/signup')}
-                className="group px-8 py-4 bg-gradient-to-r from-[#809671] to-[#B3B792] text-white rounded-full font-semibold hover:shadow-2xl transition-all transform hover:scale-105 flex items-center gap-2"
+                className="group px-8 py-4 bg-gradient-to-r from-[#809671] to-[#B3B792] text-white rounded-full font-semibold hover:shadow-2xl transition-all transform hover:scale-105 flex items-center gap-2 hover:cursor-pointer"
               >
                 Get Started Free
                 <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
-              <button className="px-8 py-4 bg-[#E5D2B8] text-[#725C3A] rounded-full font-semibold hover:bg-[#D2AB80] transition-all flex items-center gap-2">
+              <button className="px-8 py-4 bg-[#E5D2B8] text-[#725C3A] rounded-full font-semibold hover:bg-[#D2AB80] transition-all flex items-center gap-2 hover:cursor-pointer">
                 <Play className="w-5 h-5" />
                 Watch Demo
               </button>
@@ -246,7 +249,7 @@ const Home = () => {
             </p>
             <button 
               onClick={() => navigate('/signup')}
-              className="px-10 py-4 bg-white text-[#809671] rounded-full font-bold text-lg hover:bg-[#E5E0D8] transition-all transform hover:scale-105 shadow-xl"
+              className="px-10 py-4 bg-white text-[#809671] rounded-full font-bold text-lg hover:bg-[#E5E0D8] transition-all transform hover:scale-105 shadow-xl hover:cursor-pointer"
             >
               Start Free Trial Today
             </button>

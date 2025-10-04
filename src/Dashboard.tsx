@@ -381,27 +381,30 @@ const Dashboard = () => {
       <nav className="bg-[#725C3A]/95 backdrop-blur-sm border-b border-[#D2AB80]/30">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-[#809671] to-[#B3B792] rounded-xl flex items-center justify-center shadow-md">
-              <Baby className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-white">Mimicoo Dashboard</h1>
-              <p className="text-xs text-[#E5D2B8]">Real-time babble analysis</p>
-            </div>
+            <button onClick={() => window.location.href = '/'} className="flex items-center gap-3 hover:cursor-pointer">
+                <div className="w-10 h-10 bg-gradient-to-br from-[#809671] to-[#B3B792] rounded-xl flex items-center justify-center shadow-md">
+                  <Baby className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold text-white">Mimicoo Dashboard</h1>
+                  <p className="text-xs text-[#E5D2B8]">Real-time babble analysis</p>
+                </div>
+            </button>
+            
           </div>
           
           <div className="flex items-center gap-4">
             <button 
               onClick={() => window.location.href = '/learning'}
-              className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white font-medium text-sm flex items-center gap-2"
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white font-medium text-sm flex items-center gap-2 hover:cursor-pointer"
             >
               <FileText className="w-4 h-4" />
               Learning
             </button>
-            <button className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white">
+            <button className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white hover:cursor-pointer">
               <Settings className="w-5 h-5" />
             </button>
-            <button className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white">
+            <button className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white hover:cursor-pointer">
               <User className="w-5 h-5" />
             </button>
           </div>
@@ -482,7 +485,7 @@ const Dashboard = () => {
                 {!isMonitoring ? (
                   <button
                     onClick={() => setIsMonitoring(true)}
-                    className="flex-1 bg-gradient-to-r from-[#809671] to-[#B3B792] hover:from-[#6d8060] hover:to-[#9da47d] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg"
+                    className="flex-1 bg-gradient-to-r from-[#809671] to-[#B3B792] hover:from-[#6d8060] hover:to-[#9da47d] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg hover:cursor-pointer"
                   >
                     <Play className="w-5 h-5" />
                     Start Monitoring
@@ -490,7 +493,7 @@ const Dashboard = () => {
                 ) : (
                   <button
                     onClick={() => setIsMonitoring(false)}
-                    className="flex-1 bg-gradient-to-r from-[#809671] to-[#B3B792] hover:from-[#6d8060] hover:to-[#9da47d] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg"
+                    className="flex-1 bg-gradient-to-r from-[#809671] to-[#B3B792] hover:from-[#6d8060] hover:to-[#9da47d] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg hover:cursor-pointer"
                   >
                     <Pause className="w-5 h-5" />
                     Stop Monitoring
@@ -507,7 +510,7 @@ const Dashboard = () => {
                 <button 
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isProcessing}
-                  className="px-6 py-3 bg-[#D2AB80]/30 hover:bg-[#D2AB80]/40 border border-[#D2AB80]/50 text-[#725C3A] rounded-xl font-semibold transition-all flex items-center gap-2 disabled:opacity-50"
+                  className="px-6 py-3 bg-[#D2AB80]/30 hover:bg-[#D2AB80]/40 border border-[#D2AB80]/50 text-[#725C3A] rounded-xl font-semibold transition-all flex items-center gap-2 disabled:opacity-50 hover:cursor-pointer"
                 >
                   {isProcessing ? <Loader className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
                   Upload Audio
@@ -676,12 +679,12 @@ const Dashboard = () => {
               <h3 className="font-semibold mb-4 text-[#725C3A]">Quick Actions</h3>
               <div className="space-y-2">
                 <button 
-                  className="w-full py-3 bg-[#D2AB80]/30 hover:bg-[#D2AB80]/40 border border-[#D2AB80]/50 rounded-xl text-sm font-medium text-[#725C3A] transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3 bg-[#D2AB80]/30 hover:bg-[#D2AB80]/40 border border-[#D2AB80]/50 rounded-xl text-sm font-medium text-[#725C3A] transition-all flex items-center justify-center gap-2 hover:cursor-pointer"
                 >
                   <FileText className="w-4 h-4" />
                   View Learning Resources
                 </button>
-                <button className="w-full py-3 bg-[#D2AB80]/30 hover:bg-[#D2AB80]/40 border border-[#D2AB80]/50 text-[#725C3A] rounded-xl text-sm font-medium transition-all">
+                <button className="w-full py-3 bg-[#D2AB80]/30 hover:bg-[#D2AB80]/40 border border-[#D2AB80]/50 text-[#725C3A] rounded-xl text-sm font-medium transition-all hover:cursor-pointer">
                   Download Report (PDF)
                 </button>
               </div>
