@@ -36,3 +36,6 @@ interface AnalysisResult {
   next_steps: string[];
   key_findings: string;
 }
+
+// Add to your existing types.d.ts:
+
