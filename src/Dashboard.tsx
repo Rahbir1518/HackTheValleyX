@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
   Baby, Mic, TrendingUp, Activity, CheckCircle, 
-  Camera, BarChart3, Settings, FileText, Play, Pause, Volume2, User, Upload, Loader
+  Camera, BarChart3, Settings, FileText, Play, Pause, Volume2, User, Upload, Loader, Info
 } from 'lucide-react';
 
 interface AudioFeatures {
@@ -61,6 +61,7 @@ const Dashboard = () => {
   const [showDoctorModal, setShowDoctorModal] = useState<boolean>(false);
   const [selectedLanguage, setSelectedLanguage] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('distance');
+  const [showDisorderInfo, setShowDisorderInfo] = useState<string | null>(null);
   
   const [audioFeatures, setAudioFeatures] = useState<AudioFeatures | null>(null);
   const [baseFeatures, setBaseFeatures] = useState<AudioFeatures | null>(null);
@@ -89,6 +90,12 @@ const Dashboard = () => {
     { label: "Babble Score", value: "85/100", icon: <TrendingUp className="w-5 h-5" /> },
     { label: "Next Milestone", value: "2 weeks", icon: <Baby className="w-5 h-5" /> },
   ];
+
+  const disorderInfo = {
+    "Autism Spectrum Disorder (ASD)": "Autism Spectrum Disorder (ASD) is a developmental disability that can cause significant social, communication and behavioral challenges. People with ASD may communicate, interact, behave, and learn in ways that are different from most other people.",
+    "Developmental Language Disorder (DLD)": "Developmental Language Disorder (DLD) is a condition where children have problems understanding and/or using spoken language. There is no obvious reason for these difficulties, for example, there is no hearing loss or physical problem that explains them.",
+    "Hearing Impairment": "Hearing impairment refers to any degree of hearing loss, from mild to profound, that affects a child's ability to hear and understand speech. Hearing loss can be congenital (present at birth) or acquired later in childhood."
+  };
 
   useEffect(() => {
     wsRef.current = new WebSocket('ws://localhost:8000/ws');
@@ -710,7 +717,15 @@ for proper diagnosis and treatment recommendations.
                 {riskAssessment.map((item, i) => (
                   <div key={i}>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-[#725C3A]">{item.condition}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-[#725C3A]">{item.condition}</span>
+                        <button 
+                          onClick={() => setShowDisorderInfo(item.condition)}
+                          className="text-[#725C3A]/60 hover:text-[#725C3A] transition-colors hover:cursor-pointer"
+                        >
+                          <Info className="w-4 h-4" />
+                        </button>
+                      </div>
                       <span className="text-lg font-bold text-[#725C3A]">{item.risk}%</span>
                     </div>
                     <div className="w-full bg-[#E5E0D8] rounded-full h-2 mb-2">
@@ -901,6 +916,45 @@ for proper diagnosis and treatment recommendations.
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Disorder Info Modal */}
+      {showDisorderInfo && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl">
+            <div className="bg-gradient-to-r from-[#809671] to-[#B3B792] p-6 text-white rounded-t-2xl">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold">{showDisorderInfo}</h2>
+                <button 
+                  onClick={() => setShowDisorderInfo(null)}
+                  className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-colors"
+                >
+                  <span className="text-xl">×</span>
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              <div className="text-sm text-[#725C3A] leading-relaxed">
+                {disorderInfo[showDisorderInfo as keyof typeof disorderInfo]}
+              </div>
+              
+              <div className="mt-6 pt-4 border-t border-[#D2AB80]/30">
+                <p className="text-xs text-[#725C3A]/70">
+                  <strong>Note:</strong> This information is for educational purposes only. 
+                  Please consult with a healthcare professional for proper diagnosis and treatment.
+                </p>
+              </div>
+              
+              <button 
+                onClick={() => setShowDisorderInfo(null)}
+                className="w-full mt-6 py-3 bg-gradient-to-r from-[#809671] to-[#B3B792] hover:from-[#6d8060] hover:to-[#9da47d] text-white rounded-xl font-medium transition-all hover:cursor-pointer"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

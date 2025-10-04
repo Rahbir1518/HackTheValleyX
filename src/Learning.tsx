@@ -399,6 +399,45 @@ const Learning = () => {
     }
   };
 
+  // Add validation functions
+  const validateAnalysisResult = (result: any, expectedSentence: string): AnalysisResult => {
+    // Ensure score is within reasonable bounds
+    let score = Math.max(0, Math.min(100, result.score || 0));
+    
+    // Additional validation based on sentence complexity
+    const wordCount = expectedSentence.split(' ').length;
+    const maxReasonableScore = wordCount > 8 ? 95 : 100;
+    score = Math.min(score, maxReasonableScore);
+    
+    return {
+      score,
+      feedback: Array.isArray(result.feedback) ? result.feedback : ['No specific feedback available.'],
+      strengths: Array.isArray(result.strengths) ? result.strengths : ['Recording submitted successfully.'],
+      improvements: Array.isArray(result.improvements) ? result.improvements : ['Try speaking more clearly and matching the given sentence.'],
+      clarity: Math.max(0, Math.min(100, result.clarity || score)),
+      pronunciation: Math.max(0, Math.min(100, result.pronunciation || score)),
+      fluency: Math.max(0, Math.min(100, result.fluency || score))
+    };
+  };
+
+  const getFallbackAnalysis = (errorType: string): AnalysisResult => {
+    const baseScore = errorType === 'parse_error' ? 50 : 40;
+    
+    return {
+      score: baseScore,
+      feedback: [
+        'Unable to analyze recording properly.',
+        'Please ensure you are speaking clearly and matching the given sentence.',
+        'Try again in a quiet environment.'
+      ],
+      strengths: ['Recording was captured successfully.'],
+      improvements: ['Check audio quality and ensure you are speaking the correct sentence.'],
+      clarity: baseScore,
+      pronunciation: baseScore,
+      fluency: baseScore
+    };
+  };
+
   const analyzeRecording = async () => {
     if (!recordedAudio) return;
 
@@ -419,22 +458,38 @@ const Learning = () => {
           role: "user",
           parts: [
             {
-              text: `You are a speech analysis expert. The user recorded themselves reading the following sentence: "${currentSentence}". 
+              text: `You are a VERY strict speech analysis expert. The user recorded themselves reading the following sentence: "${currentSentence}". 
               
-              Analyze the audio and provide a detailed analysis focusing on clarity, pronunciation, fluency, and pacing. 
+              **CRITICAL SCORING RULES:**
+              - If no speech detected (silence/background noise only): MAX score 15
+              - If completely wrong words/unintelligible speech: MAX score 30
+              - If partially correct but mostly wrong: 30-50 range
+              - If mostly correct with some errors: 50-70 range
+              - If clearly correct with minor issues: 70-85 range
+              - Only give 85+ for near-perfect pronunciation and clarity
+              - Only give 95+ for absolutely perfect execution
               
-              Provide a detailed analysis in the following JSON format (respond ONLY with valid JSON, no other text or markdown fences):
+              **Be extremely strict with scoring. Most recordings should score below 70 unless they clearly match the target sentence.**
+              
+              **Analysis Focus:**
+              1. Did they say the EXACT sentence provided?
+              2. Is the speech clear and intelligible?
+              3. Are words pronounced correctly?
+              4. Is there proper pacing and fluency?
+              5. Penalize heavily for silence, wrong words, or poor pronunciation
+              
+              Provide analysis in this JSON format (ONLY JSON, no other text):
               {
-                "score": <number 0-100>,
-                "feedback": ["point 1", "point 2", "point 3"],
-                "strengths": ["strength 1", "strength 2"],
-                "improvements": ["improvement 1", "improvement 2"],
+                "score": <number 0-100 following strict rules above>,
+                "feedback": ["specific point 1", "specific point 2", "specific point 3"],
+                "strengths": ["honest strength or 'Needs improvement' if low score"],
+                "improvements": ["specific improvement 1", "specific improvement 2"],
                 "clarity": <number 0-100>,
                 "pronunciation": <number 0-100>,
                 "fluency": <number 0-100>
               }
               
-              Be encouraging but honest. Base your analysis on the provided audio file.`,
+              Remember: Be brutally honest. Do not inflate scores.`,
             },
             {
               inlineData: {
@@ -455,40 +510,21 @@ const Learning = () => {
         
         try {
           const result = JSON.parse(responseText);
-          setAnalysisResult(result);
-          updateGameState(result.score);
+          
+          // Additional client-side validation
+          const validatedResult = validateAnalysisResult(result, currentSentence);
+          setAnalysisResult(validatedResult);
+          updateGameState(validatedResult.score);
         } catch (parseError) {
           console.error('Failed to parse AI response JSON:', parseError);
-          setAnalysisResult({
-            score: 75,
-            feedback: [
-              'The AI could not process the analysis response. Here is a generic feedback:',
-              'Ensure your microphone is clear and the recording environment is quiet.',
-              'Focus on a steady reading pace for the next attempt.'
-            ],
-            strengths: ['Successfully recorded and submitted the audio.'],
-            improvements: ['Check the audio quality of the recording.'],
-            clarity: 70,
-            pronunciation: 70,
-            fluency: 70
-          });
+          setAnalysisResult(getFallbackAnalysis('parse_error'));
+          updateGameState(50);
         }
       }
     } catch (error) {
       console.error('Error analyzing recording:', error);
-      setAnalysisResult({
-        score: 70,
-        feedback: [
-          'An error occurred during AI analysis. Please check your API key and network connection.',
-          'Keep practicing to improve your speaking skills!',
-          'Try recording again after generating a new sentence.'
-        ],
-        strengths: ['The app detected your voice recording successfully.'],
-        improvements: ['Check browser compatibility for audio recording.'],
-        clarity: 75,
-        pronunciation: 70,
-        fluency: 65
-      });
+      setAnalysisResult(getFallbackAnalysis('analysis_error'));
+      updateGameState(40);
     } finally {
       setIsAnalyzing(false);
     }
