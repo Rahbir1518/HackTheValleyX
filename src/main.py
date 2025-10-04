@@ -24,9 +24,9 @@ app.add_middleware(
 )
 
 # Configure Google Gemini
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "your-api-key-here")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-pro')
+model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20')
 
 SAMPLE_RATE = 16000
 MIN_F0 = 75.0
