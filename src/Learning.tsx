@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useUser } from '@clerk/clerk-react';
 import { 
   Baby, Mic, RefreshCw, Volume2, CheckCircle,
   Settings, User, Play, Pause, Loader, TrendingUp, BookOpen,
@@ -8,6 +9,43 @@ import {
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY; 
 const MODEL_NAME = "gemini-2.5-flash-preview-05-20";
+
+// Age-based prompt configurations
+const AGE_PROMPTS = {
+  '0': {
+    prompt: 'Generate a single simple vowel sound or babbling sound appropriate for a 0-year-old baby, such as "aaa", "ooo", "eee", "mmm", "baba", "dada". Return ONLY the sound, nothing else. Keep it 1-3 syllables maximum.',
+    examples: ['aaa', 'ooo', 'mmm', 'baba', 'mama', 'dada'],
+    description: 'Simple sounds & babbling'
+  },
+  '1': {
+    prompt: 'Generate a single simple word or repeated syllable appropriate for a 1-year-old child, such as "ball", "mama", "dada", "cup", "dog", "cat", "more", "up". Return ONLY the word, nothing else. Maximum 2 syllables.',
+    examples: ['ball', 'mama', 'more', 'dog', 'cup', 'milk'],
+    description: 'First words'
+  },
+  '2-3': {
+    prompt: 'Generate a simple 2-4 word phrase appropriate for a 2-3 year old child, such as "want milk", "play ball", "big dog", "go outside", "my toy". Use simple, common words. Return ONLY the phrase, nothing else.',
+    examples: ['want milk', 'play ball', 'big truck', 'go park', 'my toy', 'red car'],
+    description: 'Short phrases'
+  },
+  '4-6': {
+    prompt: 'Generate a simple, clear sentence 6-12 words long appropriate for a 4-6 year old child to practice pronunciation. The sentence should use common words, proper grammar, and be easy to understand. Topics can include daily activities, animals, toys, family, or nature. Return ONLY the sentence, nothing else.',
+    examples: [
+      'I like to play with my friends at the park.',
+      'The big brown dog runs fast in the yard.',
+      'My favorite color is blue like the sky.',
+      'We eat breakfast together every morning.'
+    ],
+    description: 'Complete sentences'
+  }
+} as const;
+
+type AgeCategory = keyof typeof AGE_PROMPTS;
+
+const getAgeCategory = (age: string | undefined): AgeCategory => {
+  if (!age) return '4-6';
+  if (age in AGE_PROMPTS) return age as AgeCategory;
+  return '4-6';
+};
 
 interface AnalysisResult {
   score: number;
@@ -41,6 +79,7 @@ interface GameState {
 }
 
 const Learning = () => {
+  const { user } = useUser();
   const [currentSentence, setCurrentSentence] = useState<string>('Click "Generate Sentence" to start practicing!');
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -259,12 +298,16 @@ const Learning = () => {
     setAnalysisResult(null);
     setRecordedAudio(null);
 
+    const childAge = user?.unsafeMetadata?.childAge as string | undefined;
+    const ageCategory = getAgeCategory(childAge);
+    const ageConfig = AGE_PROMPTS[ageCategory];
+
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`;
     
     const payload = {
       contents: [{
         parts: [{
-          text: 'Generate a single simple, clear sentence for speech practice. The sentence should be 8-15 words long, appropriate for pronunciation practice, and contain a mix of common words. Just return the sentence, nothing else.'
+          text: ageConfig.prompt
         }]
       }]
     };
@@ -276,11 +319,13 @@ const Learning = () => {
         const sentence = data.candidates[0].content.parts[0].text.trim().replace(/^['"]|['"]$/g, '');
         setCurrentSentence(sentence);
       } else {
-        setCurrentSentence('The gentle wind rustled the leaves on the big oak tree.');
+        const randomExample = ageConfig.examples[Math.floor(Math.random() * ageConfig.examples.length)];
+        setCurrentSentence(randomExample);
       }
     } catch (error) {
       console.error('Error generating sentence:', error);
-      setCurrentSentence('Practice makes perfect when learning new skills.');
+      const randomExample = ageConfig.examples[Math.floor(Math.random() * ageConfig.examples.length)];
+      setCurrentSentence(randomExample);
     } finally {
       setIsGenerating(false);
     }
@@ -467,6 +512,35 @@ const Learning = () => {
     return 'bg-red-500';
   };
 
+  // Age indicator component
+  const AgeIndicator = () => {
+    const childAge = user?.unsafeMetadata?.childAge as string | undefined;
+    const childName = user?.unsafeMetadata?.childName as string | undefined;
+    
+    if (!childAge) return null;
+    
+    const ageCategory = getAgeCategory(childAge);
+    const ageConfig = AGE_PROMPTS[ageCategory];
+
+    return (
+      <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-4 mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center">
+            <Baby className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <p className="text-sm text-purple-900 font-semibold">
+              {childName ? `${childName}'s` : 'Child'} Practice Level
+            </p>
+            <p className="text-xs text-purple-700">
+              {ageConfig.description} • Age {childAge}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#E5E0D8] to-[#E5D2B8] font-inter relative overflow-hidden">
       <style>
@@ -623,6 +697,8 @@ const Learning = () => {
 
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
+            <AgeIndicator />
+            
             <div className="bg-white/90 backdrop-blur-sm border border-[#D2AB80]/30 rounded-2xl p-6 shadow-md">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -683,7 +759,7 @@ const Learning = () => {
                 ) : recordedAudio ? (
                   <div className="text-center">
                     <CheckCircle className="w-16 h-16 mx-auto mb-4 text-[#809671] animate-bounce" />
-                    <p className="text-lg font-medium text-[#725C3A]">Recording Complete! 🎉</p>
+                    <p className="text-lg font-medium text-[#725C3A]">Recording Complete!</p>
                     <p className="text-sm text-[#725C3A]/70 mt-2">Click "Analyze Recording" to get feedback and earn points</p>
                     <audio controls className="mt-4 w-full max-w-sm mx-auto rounded-xl">
                       <source src={URL.createObjectURL(recordedAudio)} type={recordedAudio.type} />
@@ -737,7 +813,7 @@ const Learning = () => {
                         setAnalysisResult(null);
                       }}
                       disabled={isAnalyzing}
-                      className="px-6 py-3 bg-[#D2AB80]/30 hover:bg-[#D2AB80]/40 border border-[#D2AB80]/50 text-[#725C3A] rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed "
+                      className="px-6 py-3 bg-[#D2AB80]/30 hover:bg-[#D2AB80]/40 border border-[#D2AB80]/50 text-[#725C3A] rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:cursor-pointer"
                     >
                       Reset
                     </button>
