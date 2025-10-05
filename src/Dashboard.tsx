@@ -99,7 +99,9 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    wsRef.current = new WebSocket('ws://localhost:8000/ws');
+    // Use environment variable for WebSocket URL, fallback to localhost for development
+    const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
+    wsRef.current = new WebSocket(`${wsUrl}/ws`);
     
     wsRef.current.onopen = () => {
       console.log('WebSocket connected');
@@ -150,7 +152,8 @@ const Dashboard = () => {
     formData.append('file', file);
 
     try {
-      const response = await fetch('http://localhost:8000/upload-base-audio', {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiUrl}/upload-base-audio`, {
         method: 'POST',
         body: formData,
       });
