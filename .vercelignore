@@ -2,7 +2,11 @@
 requirements.txt
 src/*.py
 *.py
+<<<<<<< HEAD
 pycache/
+=======
+__pycache__/
+>>>>>>> 297d1d16a290acb802a5142d50195626fd969bdf
 .env.local
 
 # Ignore audio files
