@@ -51,6 +51,13 @@ const Dashboard = () => {
   const [selectedLanguage, setSelectedLanguage] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('distance');
   const [showDisorderInfo, setShowDisorderInfo] = useState<string | null>(null);
+  const [showBookingConfirmation, setShowBookingConfirmation] = useState<boolean>(false);
+  const [bookedDoctor, setBookedDoctor] = useState<Doctor | null>(null);
+  const [bookingDetails, setBookingDetails] = useState<{
+    date: string;
+    time: string;
+    confirmationNumber: string;
+  } | null>(null);
   
   const [audioFeatures, setAudioFeatures] = useState<AudioFeatures | null>(null);
   const [baseFeatures, setBaseFeatures] = useState<AudioFeatures | null>(null);
@@ -68,7 +75,77 @@ const Dashboard = () => {
     { id: 3, name: "Dr. Amira Patel", specialty: "Child Neurologist", distance: 5.1, languages: ["English", "Hindi", "Gujarati"], rating: 4.9, availability: "Next: Mon 10:00 AM", experience: 18 },
     { id: 4, name: "Dr. Michael Rodriguez", specialty: "Pediatric Audiologist", distance: 4.2, languages: ["English", "Spanish", "Portuguese"], rating: 4.7, availability: "Next: Wed 1:00 PM", experience: 10 },
     { id: 5, name: "Dr. Emily Thompson", specialty: "Early Intervention Specialist", distance: 6.8, languages: ["English", "French"], rating: 4.8, availability: "Next: Fri 9:00 AM", experience: 14 },
+    { id: 6, name: "Dr. Robert Kim", specialty: "Pediatric Psychiatrist", distance: 7.2, languages: ["English", "Korean"], rating: 4.9, availability: "Next: Thu 3:30 PM", experience: 20 },
+    { id: 7, name: "Dr. Lisa Anderson", specialty: "Developmental Pediatrician", distance: 3.9, languages: ["English"], rating: 4.7, availability: "Next: Tue 11:00 AM", experience: 16 },
   ]);
+
+  const handleBookAppointment = (doctor: Doctor) => {
+    // Generate realistic booking details
+    const nextAppointmentDate = getNextAvailableDate(doctor.availability);
+    const confirmationNumber = generateConfirmationNumber();
+    
+    setBookedDoctor(doctor);
+    setBookingDetails({
+      date: nextAppointmentDate.date,
+      time: nextAppointmentDate.time,
+      confirmationNumber: confirmationNumber
+    });
+    setShowBookingConfirmation(true);
+    setShowDoctorModal(false);
+  };
+
+  const getNextAvailableDate = (availability: string): { date: string; time: string } => {
+    // Parse availability string to extract date and time
+    const timeMatch = availability.match(/(\d+:\d+\s+[AP]M)/);
+    const time = timeMatch ? timeMatch[1] : "10:00 AM";
+    
+    const today = new Date();
+    let appointmentDate = new Date(today);
+    
+    if (availability.includes("Tomorrow")) {
+      appointmentDate.setDate(today.getDate() + 1);
+    } else if (availability.includes("Today")) {
+      // Keep today's date
+    } else if (availability.includes("Mon")) {
+      appointmentDate = getNextWeekday(1); // Monday
+    } else if (availability.includes("Tue")) {
+      appointmentDate = getNextWeekday(2);
+    } else if (availability.includes("Wed")) {
+      appointmentDate = getNextWeekday(3);
+    } else if (availability.includes("Thu")) {
+      appointmentDate = getNextWeekday(4);
+    } else if (availability.includes("Fri")) {
+      appointmentDate = getNextWeekday(5);
+    }
+    
+    const dateString = appointmentDate.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+    
+    return { date: dateString, time };
+  };
+
+  const getNextWeekday = (targetDay: number): Date => {
+    const today = new Date();
+    const currentDay = today.getDay();
+    let daysToAdd = targetDay - currentDay;
+    if (daysToAdd <= 0) daysToAdd += 7;
+    
+    const result = new Date(today);
+    result.setDate(today.getDate() + daysToAdd);
+    return result;
+  };
+
+  const generateConfirmationNumber = (): string => {
+    const prefix = "MMC";
+    const randomNum = Math.floor(Math.random() * 900000) + 100000;
+    const suffix = String.fromCharCode(65 + Math.floor(Math.random() * 26)) + 
+                   String.fromCharCode(65 + Math.floor(Math.random() * 26));
+    return `${prefix}-${randomNum}-${suffix}`;
+  };
 
   const wsRef = useRef<WebSocket | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1019,7 +1096,10 @@ for proper diagnosis and treatment recommendations.
                         <Activity className="w-4 h-4" />
                         {doctor.availability}
                       </div>
-                      <button className="px-4 py-2 bg-gradient-to-r from-[#809671] to-[#B3B792] hover:from-[#6d8060] hover:to-[#9da47d] text-white rounded-lg text-sm font-medium transition-all flex items-center gap-2 hover:cursor-pointer">
+                      <button 
+                        onClick={() => handleBookAppointment(doctor)}
+                        className="px-4 py-2 bg-gradient-to-r from-[#809671] to-[#B3B792] hover:from-[#6d8060] hover:to-[#9da47d] text-white rounded-lg text-sm font-medium transition-all flex items-center gap-2 hover:cursor-pointer shadow-md hover:shadow-lg"
+                      >
                         Book Appointment
                         <span>→</span>
                       </button>
@@ -1082,6 +1162,116 @@ for proper diagnosis and treatment recommendations.
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Booking Confirmation Modal */}
+      {showBookingConfirmation && bookedDoctor && bookingDetails && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden animate-slideUp max-h-[90vh] overflow-y-auto">
+            {/* Success Header */}
+            <div className="bg-gradient-to-r from-[#809671] to-[#B3B792] p-6 text-white text-center relative overflow-hidden">
+              <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
+              <div className="relative z-10">
+                <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
+                  <CheckCircle className="w-10 h-10 text-white" />
+                </div>
+                <h2 className="text-2xl font-bold mb-1">Appointment Confirmed!</h2>
+                <p className="text-white/90 text-xs">Your booking has been successfully scheduled</p>
+              </div>
+            </div>
+
+            {/* Appointment Details */}
+            <div className="p-6">
+              {/* Confirmation Number */}
+              <div className="bg-gradient-to-br from-[#809671]/10 to-[#B3B792]/10 border-2 border-[#809671]/30 rounded-xl p-4 mb-4">
+                <p className="text-[10px] text-[#725C3A]/60 mb-1 uppercase tracking-wide font-semibold">Confirmation Number</p>
+                <p className="text-xl font-bold text-[#725C3A] font-mono">{bookingDetails.confirmationNumber}</p>
+              </div>
+
+              {/* Doctor Info */}
+              <div className="space-y-3 mb-4">
+                <div className="flex items-center gap-3 p-3 bg-[#E5E0D8]/50 rounded-xl">
+                  <div className="w-14 h-14 bg-gradient-to-br from-[#809671] to-[#B3B792] rounded-xl flex items-center justify-center text-white text-lg font-bold shadow-md">
+                    {bookedDoctor.name.split(' ').map(n => n[0]).join('')}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-base text-[#725C3A]">{bookedDoctor.name}</h3>
+                    <p className="text-xs text-[#725C3A]/70">{bookedDoctor.specialty}</p>
+                    <span className="text-[10px] flex items-center gap-1 text-[#725C3A]/70 mt-0.5">
+                      ⭐ {bookedDoctor.rating} • {bookedDoctor.experience} years exp.
+                    </span>
+                  </div>
+                </div>
+
+                {/* Date & Time */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-[#E5E0D8]/50 rounded-xl p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-base">📅</span>
+                      <p className="text-[10px] text-[#725C3A]/60 uppercase tracking-wide font-semibold">Date</p>
+                    </div>
+                    <p className="text-xs font-semibold text-[#725C3A]">{bookingDetails.date}</p>
+                  </div>
+                  <div className="bg-[#E5E0D8]/50 rounded-xl p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-base">🕐</span>
+                      <p className="text-[10px] text-[#725C3A]/60 uppercase tracking-wide font-semibold">Time</p>
+                    </div>
+                    <p className="text-xs font-semibold text-[#725C3A]">{bookingDetails.time}</p>
+                  </div>
+                </div>
+
+                {/* Location */}
+                <div className="bg-[#E5E0D8]/50 rounded-xl p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-base">📍</span>
+                    <p className="text-[10px] text-[#725C3A]/60 uppercase tracking-wide font-semibold">Location</p>
+                  </div>
+                  <p className="text-xs font-semibold text-[#725C3A]">
+                    Mimicoo Medical Center • {bookedDoctor.distance} km away
+                  </p>
+                </div>
+              </div>
+
+              {/* Confirmation Email Notice */}
+              <div className="bg-[#809671]/5 border border-[#809671]/20 rounded-xl p-3 mb-4">
+                <div className="flex items-start gap-2">
+                  <span className="text-sm">📧</span>
+                  <div className="text-xs text-[#725C3A]">
+                    <p className="font-semibold mb-0.5">Confirmation Email Sent</p>
+                    <p className="text-[10px] text-[#725C3A]/70">
+                      Details sent to your email with calendar invitation.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-2">
+                <button 
+                  onClick={() => {
+                    // Simulate adding to calendar
+                    alert(`✅ Appointment with ${bookedDoctor.name} added to your calendar!\n\n📅 ${bookingDetails.date}\n🕐 ${bookingDetails.time}\n📍 Mimicoo Medical Center`);
+                  }}
+                  className="w-full py-2.5 bg-gradient-to-r from-[#809671] to-[#B3B792] hover:from-[#6d8060] hover:to-[#9da47d] text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg hover:cursor-pointer text-sm"
+                >
+                  <span>📅</span>
+                  Add to Calendar
+                </button>
+                <button 
+                  onClick={() => {
+                    setShowBookingConfirmation(false);
+                    setBookedDoctor(null);
+                    setBookingDetails(null);
+                  }}
+                  className="w-full py-2.5 bg-[#E5E0D8] hover:bg-[#D2AB80]/30 text-[#725C3A] rounded-xl font-medium transition-all hover:cursor-pointer text-sm"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
