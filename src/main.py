@@ -324,29 +324,49 @@ async def upload_base_audio(file: UploadFile = File(...)):
         else:
             # Try to find base.wav in Vercel Blob Storage
             print("[DEBUG] Checking Vercel Blob Storage for base.wav...")
+            print(f"[DEBUG] BLOB_TOKEN present: {bool(BLOB_TOKEN)}")
+            
             blobs = list_blobs()
+            print(f"[DEBUG] Found {len(blobs.get('blobs', []))} blobs in storage")
+            
             base_blob_url = None
             
             for blob in blobs.get("blobs", []):
-                if blob.get("pathname", "").endswith("base.wav"):
-                    base_blob_url = blob.get("url")
-                    print(f"[DEBUG] Found base.wav in Blob Storage: {base_blob_url}")
+                pathname = blob.get("pathname", "")
+                blob_url = blob.get("url", "")
+                print(f"[DEBUG] Checking blob: pathname='{pathname}', url='{blob_url}'")
+                
+                # Check for exact match or ends with base.wav
+                if pathname == "base.wav" or pathname.endswith("/base.wav") or "base" in pathname.lower():
+                    base_blob_url = blob_url
+                    print(f"[DEBUG] ✅ Found base.wav in Blob Storage: {base_blob_url}")
                     break
             
             if base_blob_url:
                 # Download base.wav to temp location
                 base_path = os.path.join(tempfile.gettempdir(), f'base_{os.getpid()}.wav')
+                print(f"[DEBUG] Attempting to download base.wav to: {base_path}")
+                
                 if download_from_blob(base_blob_url, base_path):
-                    print(f"[DEBUG] Downloaded base.wav to: {base_path}")
+                    print(f"[DEBUG] ✅ Successfully downloaded base.wav to: {base_path}")
+                    print(f"[DEBUG] Downloaded file size: {os.path.getsize(base_path)} bytes")
                 else:
-                    print("[DEBUG] Failed to download base.wav from Blob Storage")
+                    print("[ERROR] ❌ Failed to download base.wav from Blob Storage")
                     base_path = None
+            else:
+                print("[ERROR] ❌ base.wav not found in Blob Storage")
         
         if base_path and os.path.exists(base_path):
-            print(f"[DEBUG] Loading base audio from: {base_path}")
+            print(f"[DEBUG] ✅ Loading base audio from: {base_path}")
             base_features = extract_audio_features(base_path)
             
             if base_features:
+                print(f"[DEBUG] ✅ Base features extracted successfully:")
+                print(f"[DEBUG]   - avg_pitch: {base_features['avg_pitch']} Hz")
+                print(f"[DEBUG]   - pitch_variability: {base_features['pitch_variability']}")
+                print(f"[DEBUG]   - avg_energy: {base_features['avg_energy']}")
+                print(f"[DEBUG]   - voicing_ratio: {base_features['voicing_ratio']}")
+                
                 global BASE_FEATURES
                 BASE_FEATURES = {
                     "avg_pitch": base_features["avg_pitch"],
@@ -357,11 +377,23 @@ async def upload_base_audio(file: UploadFile = File(...)):
                 }
                 
                 # Analyze with Gemini
-                print("[DEBUG] Analyzing with Gemini...")
+                print("[DEBUG] 🤖 Starting Gemini analysis comparison...")
+                print(f"[DEBUG] Uploaded audio features:")
+                print(f"[DEBUG]   - avg_pitch: {uploaded_features['avg_pitch']} Hz")
+                print(f"[DEBUG]   - pitch_variability: {uploaded_features['pitch_variability']}")
+                print(f"[DEBUG]   - avg_energy: {uploaded_features['avg_energy']}")
+                print(f"[DEBUG]   - voicing_ratio: {uploaded_features['voicing_ratio']}")
+                
                 analysis = await analyze_with_gemini(uploaded_features, BASE_FEATURES)
-                print("[DEBUG] Gemini analysis complete")
+                print("[DEBUG] ✅ Gemini analysis complete!")
+                
+                if analysis:
+                    print(f"[DEBUG] Analysis result: {analysis.get('overall_status', 'Unknown')}")
+            else:
+                print("[ERROR] ❌ Failed to extract features from base.wav")
         else:
-            print(f"[DEBUG] Warning: base.wav not found, will proceed without comparison")
+            print(f"[WARNING] ⚠️ base.wav not found, will proceed without comparison")
+            print(f"[WARNING] Upload a base.wav file to enable risk assessment")
         
         print("[DEBUG] Returning success response")
         return {
