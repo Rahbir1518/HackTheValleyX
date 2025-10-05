@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react';
-import { Heart, Mic, TrendingUp, Shield, Globe, Sparkles, ChevronRight, Play, Brain, Baby, BarChart3 } from 'lucide-react';
+import { Heart, Mic, TrendingUp, Shield, Globe, Sparkles, ChevronRight, Play, Brain, BarChart3 } from 'lucide-react';
 import Logo from "./assets/Logo.svg";
 import Stephanie from "./assets/Stephanie.png";
 import Katrina from "./assets/Katrina.jpg";
@@ -11,7 +11,7 @@ import Fraz from "./assets/Fraz.jpg";
 
 const Home = () => {
   const navigate = useNavigate();
-  const [scrollY, setScrollY] = useState(0);
+  const [, setScrollY] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {

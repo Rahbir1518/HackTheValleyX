@@ -30,18 +30,6 @@ interface WebSocketMessage {
   data?: any;
 }
 
-interface AnalysisResult {
-  risk_assessment: Array<{
-    condition: string;
-    risk_percentage: number;
-    status: string;
-    reasoning: string;
-  }>;
-  overall_status: string;
-  next_steps: string[];
-  key_findings: string;
-}
-
 interface Doctor {
   id: number;
   name: string;

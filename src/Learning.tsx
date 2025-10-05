@@ -92,7 +92,6 @@ const Learning = () => {
   const [audioLevel, setAudioLevel] = useState<number>(0);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null);
-  const [showLevelUp, setShowLevelUp] = useState<boolean>(false);
   const [earnedPoints, setEarnedPoints] = useState<number>(0);
   const [newAchievement, setNewAchievement] = useState<Achievement | null>(null);
   const [comboMultiplier, setComboMultiplier] = useState<number>(1);
@@ -216,12 +215,6 @@ const Learning = () => {
     setGameState(prev => {
       const newXP = prev.xp + xp;
       const newLevel = Math.floor(newXP / prev.xpToNextLevel) + prev.level;
-      const leveledUp = newLevel > prev.level;
-      
-      if (leveledUp) {
-        setShowLevelUp(true);
-        setTimeout(() => setShowLevelUp(false), 3000);
-      }
       
       return {
         ...prev,
