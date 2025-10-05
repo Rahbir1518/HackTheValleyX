@@ -202,34 +202,58 @@ Respond ONLY with valid JSON, no additional text.
 async def upload_base_audio(file: UploadFile = File(...)):
     """Upload and process audio, compare with base reference"""
     try:
-        # Create audio directory if it doesn't exist
-        audio_dir = os.path.join(os.path.dirname(__file__), '..', 'audio')
-        os.makedirs(audio_dir, exist_ok=True)
+        print(f"[DEBUG] Received file: {file.filename}, content_type: {file.content_type}")
         
-        # Save as compare.wav
+        # Use /tmp for temporary files (Render-compatible)
+        # Try to use audio directory if it exists (local), otherwise use /tmp (production)
+        audio_dir = os.path.join(os.path.dirname(__file__), '..', 'audio')
+        if not os.path.exists(audio_dir) or not os.access(audio_dir, os.W_OK):
+            print(f"[DEBUG] Audio directory not writable, using /tmp")
+            audio_dir = tempfile.gettempdir()
+        else:
+            print(f"[DEBUG] Using audio directory: {audio_dir}")
+        
+        # Save as compare.wav in temp directory
         compare_path = os.path.join(audio_dir, 'compare.wav')
         
+        print(f"[DEBUG] Attempting to save to: {compare_path}")
         with open(compare_path, 'wb') as f:
             content = await file.read()
             f.write(content)
         
-        print(f"Saved uploaded file to: {compare_path}")
+        print(f"[DEBUG] Saved uploaded file to: {compare_path}")
+        print(f"[DEBUG] File size: {os.path.getsize(compare_path)} bytes")
         
         # Extract features from uploaded file
         uploaded_features = extract_audio_features(compare_path)
         
         if not uploaded_features:
+            print("[ERROR] Failed to extract features from uploaded audio")
             if os.path.exists(compare_path):
                 os.unlink(compare_path)
             return {"status": "error", "message": "Failed to extract features from uploaded audio"}
         
+        print("[DEBUG] Successfully extracted features from uploaded audio")
+        
         # Load base audio features if base.wav exists
-        base_path = os.path.join(audio_dir, 'base.wav')
+        # Check both local audio folder and /tmp
+        base_path_options = [
+            os.path.join(os.path.dirname(__file__), '..', 'audio', 'base.wav'),
+            os.path.join(tempfile.gettempdir(), 'base.wav')
+        ]
+        
+        base_path = None
+        for path in base_path_options:
+            if os.path.exists(path):
+                base_path = path
+                print(f"[DEBUG] Found base.wav at: {base_path}")
+                break
+        
         base_features = None
         analysis = None
         
-        if os.path.exists(base_path):
-            print(f"Loading base audio from: {base_path}")
+        if base_path and os.path.exists(base_path):
+            print(f"[DEBUG] Loading base audio from: {base_path}")
             base_features = extract_audio_features(base_path)
             
             if base_features:
@@ -243,16 +267,21 @@ async def upload_base_audio(file: UploadFile = File(...)):
                 }
                 
                 # Analyze with Gemini
-                print("Analyzing with Gemini...")
+                print("[DEBUG] Analyzing with Gemini...")
                 analysis = await analyze_with_gemini(uploaded_features, BASE_FEATURES)
+                print("[DEBUG] Gemini analysis complete")
         else:
-            print(f"Warning: base.wav not found at {base_path}")
+            print(f"[DEBUG] Warning: base.wav not found, will proceed without comparison")
         
         # Clean up compare.wav
-        if os.path.exists(compare_path):
-            os.unlink(compare_path)
-            print("Cleaned up compare.wav")
+        try:
+            if os.path.exists(compare_path):
+                os.unlink(compare_path)
+                print("[DEBUG] Cleaned up compare.wav")
+        except Exception as cleanup_error:
+            print(f"[DEBUG] Warning: Could not clean up compare.wav: {cleanup_error}")
         
+        print("[DEBUG] Returning success response")
         return {
             "status": "success",
             "message": "Audio processed successfully",
@@ -262,11 +291,23 @@ async def upload_base_audio(file: UploadFile = File(...)):
         }
         
     except Exception as e:
-        print(f"Error in upload: {e}")
-        # Clean up on error
-        compare_path = os.path.join(os.path.dirname(__file__), '..', 'audio', 'compare.wav')
-        if os.path.exists(compare_path):
-            os.unlink(compare_path)
+        import traceback
+        print(f"[ERROR] Error in upload endpoint: {e}")
+        print(f"[ERROR] Traceback: {traceback.format_exc()}")
+        
+        # Clean up on error - try both possible locations
+        try:
+            compare_paths = [
+                os.path.join(os.path.dirname(__file__), '..', 'audio', 'compare.wav'),
+                os.path.join(tempfile.gettempdir(), 'compare.wav')
+            ]
+            for path in compare_paths:
+                if os.path.exists(path):
+                    os.unlink(path)
+                    print(f"[DEBUG] Cleaned up: {path}")
+        except Exception as cleanup_error:
+            print(f"[DEBUG] Cleanup error: {cleanup_error}")
+            
         return {"status": "error", "message": str(e)}
 
 @app.websocket("/ws")
