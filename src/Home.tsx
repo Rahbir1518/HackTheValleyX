@@ -65,7 +65,7 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <button onClick={() => window.location.href = '/'} className="flex items-center gap-3 hover:cursor-pointer">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-[#809671] to-[#B3B792] rounded-full flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center">
                 <img src={Logo}/>
               </div>
               <span className="text-2xl font-bold text-[#725C3A]">Mimicoo</span>

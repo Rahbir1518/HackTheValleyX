@@ -877,7 +877,7 @@ const Learning = () => {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
               <button onClick={() => window.location.href = '/'} className="flex items-center gap-3 hover:cursor-pointer">
-                  <div className="w-10 h-10 bg-gradient-to-br from-[#809671] to-[#B3B792] rounded-xl flex items-center justify-center shadow-md">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-md">
                     <img src={Logo} alt="Mimicoo Logo" />
                   </div>
                   <div>
