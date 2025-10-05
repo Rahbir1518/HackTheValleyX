@@ -11,6 +11,7 @@ import tempfile
 import google.generativeai as genai
 from typing import Dict, List
 import asyncio
+import requests
 
 app = FastAPI()
 
@@ -30,6 +31,9 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20')
 
+# Configure Vercel Blob
+BLOB_TOKEN = os.getenv("BLOB_READ_WRITE_TOKEN")
+
 SAMPLE_RATE = 16000
 MIN_F0 = 75.0
 MAX_F0 = 500.0
@@ -42,6 +46,78 @@ BASE_FEATURES = {
     "voicing_ratio": 0.0,
     "duration": 0.0
 }
+
+# Vercel Blob Storage Helper Functions
+def upload_to_blob(file_content: bytes, filename: str) -> str:
+    """Upload file to Vercel Blob Storage and return the URL"""
+    try:
+        print(f"[DEBUG] Uploading {filename} to Vercel Blob...")
+        
+        headers = {
+            "Authorization": f"Bearer {BLOB_TOKEN}",
+        }
+        
+        # Use Vercel Blob API to upload
+        response = requests.put(
+            f"https://blob.vercel-storage.com/{filename}",
+            headers=headers,
+            data=file_content,
+            params={"filename": filename}
+        )
+        
+        if response.status_code == 200:
+            blob_url = response.json().get("url")
+            print(f"[DEBUG] Successfully uploaded to: {blob_url}")
+            return blob_url
+        else:
+            print(f"[ERROR] Failed to upload to Blob: {response.status_code} - {response.text}")
+            return None
+            
+    except Exception as e:
+        print(f"[ERROR] Error uploading to Blob: {e}")
+        return None
+
+def download_from_blob(blob_url: str, local_path: str) -> bool:
+    """Download file from Vercel Blob Storage to local path"""
+    try:
+        print(f"[DEBUG] Downloading from Blob: {blob_url}")
+        
+        response = requests.get(blob_url)
+        
+        if response.status_code == 200:
+            with open(local_path, 'wb') as f:
+                f.write(response.content)
+            print(f"[DEBUG] Successfully downloaded to: {local_path}")
+            return True
+        else:
+            print(f"[ERROR] Failed to download from Blob: {response.status_code}")
+            return False
+            
+    except Exception as e:
+        print(f"[ERROR] Error downloading from Blob: {e}")
+        return False
+
+def list_blobs() -> dict:
+    """List all blobs in storage"""
+    try:
+        headers = {
+            "Authorization": f"Bearer {BLOB_TOKEN}",
+        }
+        
+        response = requests.get(
+            "https://blob.vercel-storage.com/",
+            headers=headers
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"[ERROR] Failed to list blobs: {response.status_code}")
+            return {"blobs": []}
+            
+    except Exception as e:
+        print(f"[ERROR] Error listing blobs: {e}")
+        return {"blobs": []}
 
 def extract_audio_features(audio_path: str) -> Dict:
     """Extract acoustic features from audio file"""
@@ -201,27 +277,29 @@ Respond ONLY with valid JSON, no additional text.
 @app.post("/upload-base-audio")
 async def upload_base_audio(file: UploadFile = File(...)):
     """Upload and process audio, compare with base reference"""
+    compare_path = None
+    base_path = None
+    
     try:
         print(f"[DEBUG] Received file: {file.filename}, content_type: {file.content_type}")
         
-        # Use /tmp for temporary files (Render-compatible)
-        # Try to use audio directory if it exists (local), otherwise use /tmp (production)
-        audio_dir = os.path.join(os.path.dirname(__file__), '..', 'audio')
-        if not os.path.exists(audio_dir) or not os.access(audio_dir, os.W_OK):
-            print(f"[DEBUG] Audio directory not writable, using /tmp")
-            audio_dir = tempfile.gettempdir()
-        else:
-            print(f"[DEBUG] Using audio directory: {audio_dir}")
+        # Read uploaded file content
+        content = await file.read()
+        print(f"[DEBUG] Read {len(content)} bytes from uploaded file")
         
-        # Save as compare.wav in temp directory
-        compare_path = os.path.join(audio_dir, 'compare.wav')
+        # Upload to Vercel Blob Storage
+        blob_url = upload_to_blob(content, "compare.wav")
         
-        print(f"[DEBUG] Attempting to save to: {compare_path}")
-        with open(compare_path, 'wb') as f:
-            content = await file.read()
-            f.write(content)
+        if not blob_url:
+            return {"status": "error", "message": "Failed to upload audio to cloud storage"}
         
-        print(f"[DEBUG] Saved uploaded file to: {compare_path}")
+        # Download to temporary local file for processing
+        compare_path = os.path.join(tempfile.gettempdir(), f'compare_{os.getpid()}.wav')
+        
+        if not download_from_blob(blob_url, compare_path):
+            return {"status": "error", "message": "Failed to download audio from cloud storage"}
+        
+        print(f"[DEBUG] Downloaded to temporary file: {compare_path}")
         print(f"[DEBUG] File size: {os.path.getsize(compare_path)} bytes")
         
         # Extract features from uploaded file
@@ -229,28 +307,40 @@ async def upload_base_audio(file: UploadFile = File(...)):
         
         if not uploaded_features:
             print("[ERROR] Failed to extract features from uploaded audio")
-            if os.path.exists(compare_path):
-                os.unlink(compare_path)
             return {"status": "error", "message": "Failed to extract features from uploaded audio"}
         
         print("[DEBUG] Successfully extracted features from uploaded audio")
         
-        # Load base audio features if base.wav exists
-        # Check both local audio folder and /tmp
-        base_path_options = [
-            os.path.join(os.path.dirname(__file__), '..', 'audio', 'base.wav'),
-            os.path.join(tempfile.gettempdir(), 'base.wav')
-        ]
-        
-        base_path = None
-        for path in base_path_options:
-            if os.path.exists(path):
-                base_path = path
-                print(f"[DEBUG] Found base.wav at: {base_path}")
-                break
-        
+        # Try to load base.wav from Vercel Blob Storage
         base_features = None
         analysis = None
+        
+        # First check if base.wav exists in local audio folder (for local development)
+        local_base_path = os.path.join(os.path.dirname(__file__), '..', 'audio', 'base.wav')
+        
+        if os.path.exists(local_base_path):
+            print(f"[DEBUG] Found local base.wav at: {local_base_path}")
+            base_path = local_base_path
+        else:
+            # Try to find base.wav in Vercel Blob Storage
+            print("[DEBUG] Checking Vercel Blob Storage for base.wav...")
+            blobs = list_blobs()
+            base_blob_url = None
+            
+            for blob in blobs.get("blobs", []):
+                if blob.get("pathname", "").endswith("base.wav"):
+                    base_blob_url = blob.get("url")
+                    print(f"[DEBUG] Found base.wav in Blob Storage: {base_blob_url}")
+                    break
+            
+            if base_blob_url:
+                # Download base.wav to temp location
+                base_path = os.path.join(tempfile.gettempdir(), f'base_{os.getpid()}.wav')
+                if download_from_blob(base_blob_url, base_path):
+                    print(f"[DEBUG] Downloaded base.wav to: {base_path}")
+                else:
+                    print("[DEBUG] Failed to download base.wav from Blob Storage")
+                    base_path = None
         
         if base_path and os.path.exists(base_path):
             print(f"[DEBUG] Loading base audio from: {base_path}")
@@ -273,42 +363,35 @@ async def upload_base_audio(file: UploadFile = File(...)):
         else:
             print(f"[DEBUG] Warning: base.wav not found, will proceed without comparison")
         
-        # Clean up compare.wav
-        try:
-            if os.path.exists(compare_path):
-                os.unlink(compare_path)
-                print("[DEBUG] Cleaned up compare.wav")
-        except Exception as cleanup_error:
-            print(f"[DEBUG] Warning: Could not clean up compare.wav: {cleanup_error}")
-        
         print("[DEBUG] Returning success response")
         return {
             "status": "success",
             "message": "Audio processed successfully",
             "uploaded_features": uploaded_features,
             "base_features": base_features,
-            "analysis": analysis
+            "analysis": analysis,
+            "blob_url": blob_url
         }
         
     except Exception as e:
         import traceback
         print(f"[ERROR] Error in upload endpoint: {e}")
         print(f"[ERROR] Traceback: {traceback.format_exc()}")
-        
-        # Clean up on error - try both possible locations
-        try:
-            compare_paths = [
-                os.path.join(os.path.dirname(__file__), '..', 'audio', 'compare.wav'),
-                os.path.join(tempfile.gettempdir(), 'compare.wav')
-            ]
-            for path in compare_paths:
-                if os.path.exists(path):
-                    os.unlink(path)
-                    print(f"[DEBUG] Cleaned up: {path}")
-        except Exception as cleanup_error:
-            print(f"[DEBUG] Cleanup error: {cleanup_error}")
-            
         return {"status": "error", "message": str(e)}
+        
+    finally:
+        # Clean up temporary files
+        try:
+            if compare_path and os.path.exists(compare_path):
+                os.unlink(compare_path)
+                print(f"[DEBUG] Cleaned up temporary compare file: {compare_path}")
+            
+            # Only clean up base if it was downloaded from blob (not local)
+            if base_path and base_path.startswith(tempfile.gettempdir()) and os.path.exists(base_path):
+                os.unlink(base_path)
+                print(f"[DEBUG] Cleaned up temporary base file: {base_path}")
+        except Exception as cleanup_error:
+            print(f"[DEBUG] Cleanup warning: {cleanup_error}")
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
