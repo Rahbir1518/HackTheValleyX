@@ -71,7 +71,7 @@ def extract_audio_features(audio_path: str) -> Dict:
         rms_time_series = rms_data[0]
         rms_timestamps = librosa.frames_to_time(np.arange(len(rms_time_series)), sr=sr, hop_length=512)
         avg_energy = float(np.mean(rms_time_series))
-
+        # test
         return {
             "avg_pitch": round(avg_pitch, 2),
             "pitch_variability": round(pitch_variability, 4),
