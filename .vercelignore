@@ -1,0 +1,6 @@
+requirements.txt
+src/main.py
+src/extractor.py
+src/*.py
+audio/
+__pycache__/
