@@ -1,0 +1,11 @@
+# Ignore Python backend files
+requirements.txt
+src/*.py
+*.py
+__pycache__/
+.env.local
+
+# Ignore audio files
+audio/
+
+# Keep only frontend files for Vercel deployment
