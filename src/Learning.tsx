@@ -162,7 +162,7 @@ const Learning = () => {
   const animationFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout | undefined;
+    let interval: number | undefined;
     if (isRecording) {
       interval = setInterval(() => {
         setRecordingTime(prev => prev + 1);

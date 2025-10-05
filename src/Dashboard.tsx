@@ -129,7 +129,7 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout | undefined;
+    let interval: number | undefined;
     if (isMonitoring) {
       interval = setInterval(() => {
         setAudioLevel(Math.random() * 100);
