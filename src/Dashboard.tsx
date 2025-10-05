@@ -140,7 +140,7 @@ const Dashboard = () => {
     formData.append('file', file);
 
     try {
-      const apiUrl = (import.meta.env.VITE_API_URL || 'mimi-coo.vercel.app').replace(/\/$/, '');
+      const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
       const response = await fetch(`${apiUrl}/upload-base-audio`, {
         method: 'POST',
         body: formData,
