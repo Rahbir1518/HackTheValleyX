@@ -88,7 +88,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     // Use environment variable for WebSocket URL, fallback to localhost for development
-    const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
+    const wsUrl = (import.meta.env.VITE_WS_URL || 'ws://localhost:8000').replace(/\/$/, '');
     wsRef.current = new WebSocket(`${wsUrl}/ws`);
     
     wsRef.current.onopen = () => {
@@ -140,7 +140,7 @@ const Dashboard = () => {
     formData.append('file', file);
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
       const response = await fetch(`${apiUrl}/upload-base-audio`, {
         method: 'POST',
         body: formData,
