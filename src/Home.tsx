@@ -54,7 +54,7 @@ const Home = () => {
   const teamMembers = [
     { name: "Mohammed Faraz Kabbo", role: "CS @ Yorku", img: Fraz, github: "https://github.com/farazkabbo", linkedin: "https://www.linkedin.com/in/mohammed-faraz-kabbo/" },
     { name: "Md Rahbir Mahdi", role: "CS @ Yorku", img: Rahbir, github: "https://github.com/Rahbir1518", linkedin: "https://www.linkedin.com/in/rahbirmahdi/" },
-    { name: "Katrina Jin", role: "Speech Pathologist", img: Katrina, github: "#", linkedin: "https://www.linkedin.com/in/katrina-jin-608792298/" },
+    { name: "Katrina Jin", role: "CS @ Queen's", img: Katrina, github: "#", linkedin: "https://www.linkedin.com/in/katrina-jin-608792298/" },
     { name: "Stephanie", role: "Full Stack Developer", img: Stephanie, github: "#", linkedin: "#" }
   ];
 
