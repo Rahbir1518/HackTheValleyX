@@ -46,9 +46,25 @@ BASE_FEATURES = {
 def extract_audio_features(audio_path: str) -> Dict:
     """Extract acoustic features from audio file"""
     try:
+        print(f"[DEBUG] Extracting features from: {audio_path}")
+        print(f"[DEBUG] File exists: {os.path.exists(audio_path)}")
+        print(f"[DEBUG] File size: {os.path.getsize(audio_path) if os.path.exists(audio_path) else 0} bytes")
+        
+        # Check if file exists and has content
+        if not os.path.exists(audio_path):
+            print(f"[ERROR] Audio file not found: {audio_path}")
+            return None
+            
+        if os.path.getsize(audio_path) == 0:
+            print(f"[ERROR] Audio file is empty: {audio_path}")
+            return None
+        
+        print("[DEBUG] Loading audio with parselmouth...")
         sound = parselmouth.Sound(audio_path)
         duration = sound.get_total_duration()
+        print(f"[DEBUG] Duration: {duration}s")
         
+        print("[DEBUG] Extracting pitch...")
         pitch = sound.to_pitch(time_step=0.01, pitch_floor=MIN_F0, pitch_ceiling=MAX_F0)
         pitch_time_series = pitch.selected_array['frequency']
         pitch_interval = pitch.get_time_step()
@@ -66,12 +82,17 @@ def extract_audio_features(audio_path: str) -> Dict:
             avg_pitch = 0.0
             pitch_variability = 0.0
         
+        print("[DEBUG] Loading audio with librosa...")
         y, sr = librosa.load(audio_path, sr=SAMPLE_RATE)
+        print(f"[DEBUG] Audio loaded: {len(y)} samples at {sr}Hz")
+        
+        print("[DEBUG] Extracting RMS energy...")
         rms_data = librosa.feature.rms(y=y, frame_length=2048, hop_length=512)
         rms_time_series = rms_data[0]
         rms_timestamps = librosa.frames_to_time(np.arange(len(rms_time_series)), sr=sr, hop_length=512)
         avg_energy = float(np.mean(rms_time_series))
-        # test
+        
+        print("[DEBUG] Feature extraction completed successfully!")
         return {
             "avg_pitch": round(avg_pitch, 2),
             "pitch_variability": round(pitch_variability, 4),
@@ -84,7 +105,9 @@ def extract_audio_features(audio_path: str) -> Dict:
             "rms_timestamps": rms_timestamps.tolist(),
         }
     except Exception as e:
-        print(f"Error extracting features: {e}")
+        import traceback
+        print(f"[ERROR] Error extracting features: {e}")
+        print(f"[ERROR] Traceback: {traceback.format_exc()}")
         return None
 
 async def analyze_with_gemini(uploaded_features: Dict, base_features: Dict) -> Dict:
